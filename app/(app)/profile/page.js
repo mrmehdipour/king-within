@@ -93,6 +93,9 @@ export default function ProfilePage() {
       {/* Settings */}
       <SectionTitle>Settings</SectionTitle>
       <div className="bg-stone-900 border border-stone-800 rounded-2xl divide-y divide-stone-800 mb-6 overflow-hidden">
+        {profile?.is_admin && (
+          <SettingRow label="⚙️ Admin (CMS)" onClick={() => router.push('/admin')} />
+        )}
         <SettingRow label="Edit account" onClick={() => {}} />
         <SettingRow label="Notifications" onClick={() => {}} />
         <SettingRow label="Sign out" danger onClick={handleSignOut} />
