@@ -7,6 +7,17 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
   },
+
+  // Static export → produces ./out, which Capacitor packages into the Android
+  // WebView. The whole app is client-rendered, so this is a clean fit.
+  output: "export",
+
+  // next/image optimization needs a server; disable it for the static bundle.
+  images: { unoptimized: true },
+
+  // Emit each route as a folder with index.html — friendliest for file:// in
+  // the WebView and for static hosting on the web.
+  trailingSlash: true,
 };
 
 export default nextConfig;
