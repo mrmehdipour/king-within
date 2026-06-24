@@ -1,26 +1,90 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/* Map the next/font CSS variables into Tailwind's theme so utilities like
+   `font-display` work. */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-cinzel);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  color-scheme: dark;
+  /* Brand tokens — royal dark "stone" + amber/gold */
+  --kw-bg: #0c0a09; /* stone-950 */
+  --kw-surface: #1c1917; /* stone-900 */
+  --kw-surface-2: #292524; /* stone-800 */
+  --kw-border: #44403c; /* stone-700 */
+  --kw-gold: #f59e0b; /* amber-500 */
+  --kw-gold-light: #fbbf24; /* amber-400 */
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--kw-bg);
+  color: #fafaf9;
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  /* Don't let mobile rubber-band scrolling reveal a white edge in the WebView */
+  overscroll-behavior-y: none;
+}
+
+/* A subtle royal glow anchored to the top of the viewport. Lives behind all
+   content; purely decorative. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(60% 40% at 50% -5%, rgba(245, 158, 11, 0.12), transparent 70%),
+    radial-gradient(50% 30% at 90% 10%, rgba(245, 158, 11, 0.05), transparent 70%);
+}
+
+/* Safe-area helpers for the Capacitor/mobile shell (notches, home indicator). */
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Hide scrollbars on the immersive course player without losing scroll. */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+@keyframes kw-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+.animate-pop {
+  animation: kw-pop 0.28s ease-out both;
+}
+
+@keyframes kw-glow {
+  0%,
+  100% {
+    box-shadow: 0 5px 0 0 #b45309, 0 0 0 6px rgba(251, 191, 36, 0.18);
+  }
+  50% {
+    box-shadow: 0 5px 0 0 #b45309, 0 0 0 10px rgba(251, 191, 36, 0.28);
+  }
+}
+.animate-glow {
+  animation: kw-glow 1.8s ease-in-out infinite;
 }
