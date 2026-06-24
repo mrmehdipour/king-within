@@ -8,16 +8,16 @@ const nextConfig: NextConfig = {
     root: path.resolve(__dirname),
   },
 
-  // Static export → produces ./out, which Capacitor packages into the Android
-  // WebView. The whole app is client-rendered, so this is a clean fit.
-  output: "export",
+  // Static export ONLY for the Capacitor build (BUILD_TARGET=capacitor) → ./out
+  // for the Android WebView. The web deploy uses a normal build so the blog can
+  // use ISR (SEO + near-instant content updates).
+  ...(process.env.BUILD_TARGET === "capacitor"
+    ? { output: "export" as const, trailingSlash: true }
+    : {}),
 
-  // next/image optimization needs a server; disable it for the static bundle.
+  // next/image optimization needs a server; the app uses no next/image, so keep
+  // it unoptimized for parity between both build targets.
   images: { unoptimized: true },
-
-  // Emit each route as a folder with index.html — friendliest for file:// in
-  // the WebView and for static hosting on the web.
-  trailingSlash: true,
 };
 
 export default nextConfig;

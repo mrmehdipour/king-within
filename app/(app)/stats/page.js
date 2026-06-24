@@ -3,74 +3,92 @@
 import { useAppData } from '../../lib/appData'
 import { getArchetypeProgress } from '../../lib/archetypes'
 
-// Mock 7-day activity (XP earned per day) for the shell visualization.
-const WEEK_XP = [
-  { day: 'M', xp: 40 },
-  { day: 'T', xp: 0 },
-  { day: 'W', xp: 80 },
-  { day: 'T', xp: 40 },
-  { day: 'F', xp: 0 },
-  { day: 'S', xp: 60 },
-  { day: 'S', xp: 40 },
-]
+const DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+
+function last7Days(xpEvents) {
+  const byDay = {}
+  for (const e of xpEvents) {
+    const k = (e.created_at || '').slice(0, 10)
+    byDay[k] = (byDay[k] || 0) + (e.amount || 0)
+  }
+  const days = []
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date()
+    d.setDate(d.getDate() - i)
+    const key = d.toISOString().slice(0, 10)
+    days.push({ label: DOW[d.getDay()], xp: byDay[key] || 0 })
+  }
+  return days
+}
+
+function calcStreak(journalEntries) {
+  const days = new Set(journalEntries.filter((h) => h.completed).map((h) => h.entry_date))
+  let streak = 0
+  const d = new Date()
+  for (;;) {
+    if (days.has(d.toISOString().slice(0, 10))) {
+      streak++
+      d.setDate(d.getDate() - 1)
+    } else break
+  }
+  return streak
+}
 
 export default function StatsPage() {
-  const { profile, levels, progress, loading } = useAppData()
+  const { profile, levels, progress, xpEvents, journalEntries, loading } = useAppData()
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-stone-400">Loading…</p>
-      </div>
-    )
+    return <div className="min-h-screen flex items-center justify-center text-stone-400">Loading…</div>
   }
 
-  const completed = progress.filter((p) => p.status === 'completed').length
   const totalXp = profile?.total_xp ?? 0
   const arch = getArchetypeProgress(totalXp)
+  const completedRows = progress.filter((p) => p.status === 'completed')
+  const completed = completedRows.length
   const completionPct = levels.length ? Math.round((completed / levels.length) * 100) : 0
 
-  // Quiz accuracy across completed courses.
   const quizzed = progress.filter((p) => typeof p.quiz_total === 'number' && p.quiz_total > 0)
   const quizCorrect = quizzed.reduce((s, p) => s + (p.quiz_score ?? 0), 0)
   const quizTotal = quizzed.reduce((s, p) => s + (p.quiz_total ?? 0), 0)
   const accuracy = quizTotal ? Math.round((quizCorrect / quizTotal) * 100) : 0
 
-  const maxXp = Math.max(...WEEK_XP.map((d) => d.xp), 1)
+  const journalsDone = journalEntries.filter((j) => j.completed).length
+  const streak = calcStreak(journalEntries)
+
+  const week = last7Days(xpEvents)
+  const maxXp = Math.max(...week.map((d) => d.xp), 1)
+  const weekTotal = week.reduce((s, d) => s + d.xp, 0)
 
   return (
     <div className="text-white max-w-xl mx-auto px-4">
       <header className="pt-safe pt-8 pb-4">
         <h1 className="font-display text-2xl text-amber-400">Analytics</h1>
-        <p className="text-stone-400 text-sm">Your progress at a glance</p>
+        <p className="text-stone-400 text-sm">Live — updates as you learn and journal</p>
       </header>
 
-      {/* Metric cards */}
       <div className="grid grid-cols-2 gap-3 mb-6">
+        <MetricCard label="Total XP" value={totalXp} sub={arch.next ? `→ ${arch.next}` : 'Max archetype'} />
         <MetricCard label="Courses completed" value={completed} sub={`of ${levels.length}`} />
-        <MetricCard label="Total XP" value={totalXp} sub={arch.next ? `→ ${arch.next}` : 'Max'} />
-        <MetricCard label="Current streak" value="3" sub="days 🔥" />
+        <MetricCard label="Journal streak" value={`${streak}🔥`} sub={`${journalsDone} entries`} />
         <MetricCard label="Quiz accuracy" value={`${accuracy}%`} sub={`${quizCorrect}/${quizTotal} correct`} />
       </div>
 
-      {/* Weekly activity bar chart */}
-      <SectionTitle>This week</SectionTitle>
+      <SectionTitle>This week · {weekTotal} XP</SectionTitle>
       <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 mb-6">
         <div className="flex items-end justify-between gap-2 h-36">
-          {WEEK_XP.map((d, i) => (
+          {week.map((d, i) => (
             <div key={i} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
               <div
                 className={`w-full rounded-t-md ${d.xp ? 'bg-amber-500' : 'bg-stone-800'}`}
                 style={{ height: `${Math.max((d.xp / maxXp) * 100, 4)}%` }}
                 title={`${d.xp} XP`}
               />
-              <span className="text-[11px] text-stone-500">{d.day}</span>
+              <span className="text-[11px] text-stone-500">{d.label}</span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Overall completion */}
       <SectionTitle>Path completion</SectionTitle>
       <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 mb-6">
         <div className="flex items-center justify-between mb-2 text-sm">
@@ -82,12 +100,11 @@ export default function StatsPage() {
         </div>
       </div>
 
-      {/* Activity breakdown */}
       <SectionTitle>Activity breakdown</SectionTitle>
       <div className="bg-stone-900 border border-stone-800 rounded-2xl divide-y divide-stone-800 mb-6 overflow-hidden">
-        <BreakdownRow label="Reading comprehension" value={completed} />
-        <BreakdownRow label="Critical thinking" value={completed} />
-        <BreakdownRow label="Quizzes passed" value={completed} />
+        <BreakdownRow label="Courses completed" value={completed} />
+        <BreakdownRow label="Journal entries" value={journalsDone} />
+        <BreakdownRow label="XP events logged" value={xpEvents.length} />
       </div>
     </div>
   )

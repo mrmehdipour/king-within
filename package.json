@@ -7,14 +7,16 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "cap:sync": "next build && cap sync android",
+    "build:cap": "cross-env BUILD_TARGET=capacitor next build",
+    "cap:sync": "npm run build:cap && cap sync android",
     "cap:open": "cap open android",
-    "android": "next build && cap sync android && cap open android"
+    "android": "npm run build:cap && cap sync android && cap open android"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.1",
     "@capacitor/core": "^8.4.1",
     "@supabase/supabase-js": "^2.108.2",
+    "marked": "^18.0.5",
     "next": "16.2.9",
     "react": "19.2.4",
     "react-dom": "19.2.4"
@@ -25,6 +27,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "tailwindcss": "^4",

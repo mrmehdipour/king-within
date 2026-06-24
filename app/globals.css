@@ -76,6 +76,41 @@ body::before {
   animation: kw-pop 0.28s ease-out both;
 }
 
+/* Rendered-markdown styling for blog posts (.prose-kw wraps marked output). */
+.prose-kw {
+  color: #d6d3d1;
+  line-height: 1.75;
+}
+.prose-kw h2 {
+  font-family: var(--font-cinzel), serif;
+  color: #fbbf24;
+  font-size: 1.5rem;
+  margin: 1.75rem 0 0.5rem;
+}
+.prose-kw p {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+}
+.prose-kw blockquote {
+  border-left: 2px solid #f59e0b;
+  padding: 0.1rem 0 0.1rem 1rem;
+  font-style: italic;
+  color: #e7e5e4;
+  margin: 1.25rem 0;
+}
+.prose-kw ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+  margin: 0 0 1rem;
+}
+.prose-kw li {
+  margin-bottom: 0.4rem;
+}
+.prose-kw a {
+  color: #fbbf24;
+  text-decoration: underline;
+}
+
 @keyframes kw-glow {
   0%,
   100% {

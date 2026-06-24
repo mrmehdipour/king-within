@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../lib/supabaseClient'
-import { getArchetypeForXp } from '../lib/archetypes'
+import { awardXp } from '../lib/xp'
 
 // Three sequential activities per course. Order is fixed and you cannot skip.
 const STEPS = ['reading', 'thinking', 'quiz']
@@ -22,7 +22,6 @@ function CoursePlayer() {
   const levelId = params.get('id') != null ? Number(params.get('id')) : null
 
   const [level, setLevel] = useState(null)
-  const [profile, setProfile] = useState(null)
   const [wasCompleted, setWasCompleted] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -39,14 +38,13 @@ function CoursePlayer() {
       return
     }
 
-    const [{ data: levelData }, { data: profileData }, { data: existing }] = await Promise.all([
+    const [{ data: levelData }, { data: existing }] = await Promise.all([
       supabase
         .from('levels')
         .select('*, questions(*)')
         .order('sort_order', { referencedTable: 'questions', ascending: true })
         .eq('level_id', levelId)
         .single(),
-      supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase
         .from('user_progress')
         .select('*')
@@ -56,7 +54,6 @@ function CoursePlayer() {
     ])
 
     setLevel(levelData)
-    setProfile(profileData)
     if (existing?.status === 'completed') {
       setWasCompleted(true)
       setReflection(existing.submission_content || '')
@@ -66,11 +63,10 @@ function CoursePlayer() {
 
   useEffect(() => {
     if (levelId == null || Number.isNaN(levelId)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false)
       return
     }
-    // load resolves async; setState runs after awaits, not synchronously.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [levelId])
@@ -127,19 +123,14 @@ function CoursePlayer() {
       { onConflict: 'user_id,level_id' }
     )
 
-    // 2) Award XP + advance archetype/level on the profile.
-    const newXp = (profile.total_xp ?? 0) + level.xp_reward
-    const newArchetype = getArchetypeForXp(newXp)
-    const evolvedTo = newArchetype !== profile.current_archetype ? newArchetype : null
-
-    await supabase
-      .from('profiles')
-      .update({
-        total_xp: newXp,
-        current_archetype: newArchetype,
-        current_level: level.level_number + 1,
-      })
-      .eq('id', user.id)
+    // 2) Award XP through the ledger (also advances current_level + archetype).
+    const { evolvedTo } = await awardXp({
+      userId: user.id,
+      source: 'course',
+      sourceRef: level.level_id,
+      amount: level.xp_reward,
+      profilePatch: { current_level: level.level_number + 1 },
+    })
 
     setFinished({ xpGained: level.xp_reward, score, total: questions.length, evolvedTo })
     setSubmitting(false)

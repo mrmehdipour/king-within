@@ -16,6 +16,12 @@ const TABS = [
     ),
   },
   {
+    href: '/journal',
+    label: 'Journal',
+    // book + pen
+    icon: <path d="M4 5a2 2 0 0 1 2-2h11v15H6a2 2 0 0 0-2 2V5Zm13 13H6m11-15v15" />,
+  },
+  {
     href: '/stats',
     label: 'Stats',
     icon: <path d="M4 20V10m6 10V4m6 16v-7m4 7H2" />,
