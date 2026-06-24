@@ -14,11 +14,13 @@ export default function SignupPage() {
   const [password, setPassword] = useState('')
   const [isLogin, setIsLogin] = useState(false) // toggles between Sign Up and Log In
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('') // non-error info (e.g. confirm email)
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e) {
     e.preventDefault() // stops the browser's default "reload the page" form behavior
     setError('')
+    setNotice('')
     setLoading(true)
 
     if (isLogin) {
@@ -33,15 +35,23 @@ export default function SignupPage() {
       // SIGN UP a new user
       // Remember: the database trigger we created automatically makes
       // their 'profiles' row (Initiate, Level 1, 0 XP) the instant this succeeds.
-      const { error } = await supabase.auth.signUp({ email, password })
+      const { data, error } = await supabase.auth.signUp({ email, password })
       if (error) {
         setError(error.message)
         setLoading(false)
         return
       }
+      // If "Confirm email" is enabled in Supabase, signUp returns no session yet.
+      // Don't push to /learn (they'd bounce back) — tell them to confirm + log in.
+      if (!data.session) {
+        setNotice('Account created. Check your email to confirm, then log in.')
+        setIsLogin(true)
+        setLoading(false)
+        return
+      }
     }
 
-    // Success in either case — send them into the app shell
+    // Active session — send them into the app shell
     router.push('/learn')
   }
 
@@ -76,6 +86,9 @@ export default function SignupPage() {
 
           {error && (
             <p className="text-red-400 text-sm">{error}</p>
+          )}
+          {notice && (
+            <p className="text-amber-400 text-sm">{notice}</p>
           )}
 
           <button

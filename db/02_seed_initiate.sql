@@ -9,11 +9,15 @@
 
 begin;
 
--- Clear any existing Initiate content (and progress pointing at it) so this
--- script can be run repeatedly during development.
-delete from user_progress where level_id in (select level_id from levels where archetype_stage = 'Initiate');
-delete from questions where level_id in (select level_id from levels where archetype_stage = 'Initiate');
-delete from levels where archetype_stage = 'Initiate';
+-- Full curriculum reset so this script is re-runnable and the level ids are
+-- predictable (1..6). This wipes ALL existing levels/questions and the progress
+-- that points at them — fine at this stage where the only content is Initiate.
+-- First null the self-referencing unlock chain so the delete doesn't violate
+-- levels_unlock_requirement_fkey.
+update levels set unlock_requirement = null;
+delete from user_progress;
+delete from questions;
+delete from levels;
 
 -- ---------------------------------------------------------------------------
 -- Levels
