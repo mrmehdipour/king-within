@@ -93,6 +93,29 @@ async function main() {
   const { data: profile2 } = await supabase.from('profiles').select('total_xp').eq('id', userId).single()
   ok('XP persisted', profile2?.total_xp === (profile?.total_xp ?? 0) + reward, `total_xp=${profile2?.total_xp}`)
 
+  // --- Expansion 2: XP ledger -----------------------------------------------
+  const { error: xpErr } = await supabase.from('xp_events').insert({
+    user_id: userId, source: 'course', source_ref: String(l1.level_id), amount: reward,
+  })
+  ok('write xp_events (ledger)', !xpErr, xpErr?.message)
+  const { data: xp } = await supabase.from('xp_events').select('id').eq('user_id', userId)
+  ok('xp event persisted', (xp?.length ?? 0) > 0, `${xp?.length} events`)
+
+  // --- Expansion 2: daily journal -------------------------------------------
+  const today = new Date().toISOString().slice(0, 10)
+  const { data: q, error: qErr } = await supabase.rpc('next_journal_question', { uid: userId })
+  const question = Array.isArray(q) ? q[0] : q
+  ok('journal RPC returns an unseen question', !qErr && !!question, qErr?.message)
+  if (question) {
+    const { data: entry, error: eErr } = await supabase.from('journal_entries')
+      .insert({ user_id: userId, question_id: question.id, entry_date: today, answer_text: 'smoke', completed: true })
+      .select().single()
+    ok('create journal entry', !eErr && !!entry, eErr?.message)
+    const { error: dupErr } = await supabase.from('journal_entries')
+      .insert({ user_id: userId, question_id: question.id, entry_date: today })
+    ok('one entry per day enforced', !!dupErr, dupErr ? '' : 'duplicate was allowed!')
+  }
+
   console.log(`\n(throwaway user: ${email})`)
 }
 
