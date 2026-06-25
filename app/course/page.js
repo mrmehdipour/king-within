@@ -146,6 +146,21 @@ function CoursePlayer() {
       },
       { onConflict: 'user_id,level_id' }
     )
+
+    // Capture each individual answer (for the future AI personality analysis).
+    const answerRows = blocks
+      .map((b, i) => ({ b, s: stepState[i] || {} }))
+      .filter(({ b, s }) => (b.type === 'writing' ? !!norm(s.value) : GRADED.has(b.type)))
+      .map(({ b, s }) => ({
+        user_id: user.id,
+        level_id: level.level_id,
+        block_id: b.id,
+        type: b.type,
+        answer: { value: s.value ?? null },
+        is_correct: GRADED.has(b.type) ? !!s.correct : null,
+      }))
+    if (answerRows.length) await supabase.from('user_answers').insert(answerRows)
+
     const { evolvedTo } = await awardXp({
       userId: user.id, source: 'course', sourceRef: level.level_id, amount: level.xp_reward,
       profilePatch: { current_level: level.level_number + 1 },
