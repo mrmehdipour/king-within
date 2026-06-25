@@ -50,6 +50,18 @@ body::before {
     radial-gradient(50% 30% at 90% 10%, rgba(245, 158, 11, 0.05), transparent 70%);
 }
 
+/* Persian: use Vazirmatn for body and (since Cinzel is Latin-only) headings. */
+html[lang="fa"] body {
+  font-family: var(--font-vazir), system-ui, sans-serif;
+}
+html[lang="fa"] .font-display {
+  font-family: var(--font-vazir), serif;
+}
+/* Flip inline directional glyphs (arrows/chevrons) when RTL. */
+[dir="rtl"] .rtl-flip {
+  transform: scaleX(-1);
+}
+
 /* Safe-area helpers for the Capacitor/mobile shell (notches, home indicator). */
 .pt-safe {
   padding-top: env(safe-area-inset-top, 0px);

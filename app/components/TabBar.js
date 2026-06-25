@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useT } from '../lib/i18n'
 
 // Bottom navigation for the authenticated shell. Mobile-first (thumb reach),
 // works equally on desktop. Active tab is derived from the current path.
@@ -9,7 +10,7 @@ import { usePathname } from 'next/navigation'
 const TABS = [
   {
     href: '/learn',
-    label: 'Learn',
+    labelKey: 'tab.learn',
     // map / path icon
     icon: (
       <path d="M9 4 4 6v14l5-2 6 2 5-2V4l-5 2-6-2Zm0 0v14m6-12v14" />
@@ -17,18 +18,18 @@ const TABS = [
   },
   {
     href: '/journal',
-    label: 'Journal',
+    labelKey: 'tab.journal',
     // book + pen
     icon: <path d="M4 5a2 2 0 0 1 2-2h11v15H6a2 2 0 0 0-2 2V5Zm13 13H6m11-15v15" />,
   },
   {
     href: '/stats',
-    label: 'Stats',
+    labelKey: 'tab.stats',
     icon: <path d="M4 20V10m6 10V4m6 16v-7m4 7H2" />,
   },
   {
     href: '/profile',
-    label: 'Profile',
+    labelKey: 'tab.profile',
     icon: (
       <>
         <circle cx="12" cy="8" r="4" />
@@ -40,6 +41,7 @@ const TABS = [
 
 export default function TabBar() {
   const pathname = usePathname()
+  const t = useT()
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-20 bg-stone-900/95 backdrop-blur border-t border-stone-800 pb-safe">
@@ -68,7 +70,7 @@ export default function TabBar() {
               >
                 {tab.icon}
               </svg>
-              <span className="text-[11px] font-medium">{tab.label}</span>
+              <span className="text-[11px] font-medium">{t(tab.labelKey)}</span>
             </Link>
           )
         })}

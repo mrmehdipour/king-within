@@ -4,24 +4,31 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabaseClient'
 import { useAppData } from '../../lib/appData'
 import { getArchetypeProgress, ARCHETYPE_THRESHOLDS } from '../../lib/archetypes'
+import { useLang } from '../../lib/i18n'
+import LanguageToggle from '../../components/LanguageToggle'
 
 export default function ProfilePage() {
   const router = useRouter()
+  const { t, locale } = useLang()
   const { profile, progress, loading } = useAppData()
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-stone-400">Loading…</p>
+        <p className="text-stone-400">{t('common.loading')}</p>
       </div>
     )
   }
 
+  const archName = (a) => {
+    const k = t('arch.' + a)
+    return k === 'arch.' + a ? a : k
+  }
   const completed = progress.filter((p) => p.status === 'completed').length
   const archProgress = getArchetypeProgress(profile?.total_xp ?? 0)
   const initials = (profile?.email?.[0] ?? 'K').toUpperCase()
   const memberSince = profile?.created_at
-    ? new Date(profile.created_at).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+    ? new Date(profile.created_at).toLocaleDateString(locale === 'fa' ? 'fa-IR' : undefined, { month: 'long', year: 'numeric' })
     : '—'
 
   async function handleSignOut() {
@@ -35,25 +42,26 @@ export default function ProfilePage() {
         <div className="w-24 h-24 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-stone-900 text-4xl font-display font-bold border-4 border-stone-800">
           {initials}
         </div>
-        <h1 className="mt-4 font-display text-2xl text-amber-400">{profile?.current_archetype}</h1>
+        <h1 className="mt-4 font-display text-2xl text-amber-400">{archName(profile?.current_archetype)}</h1>
         <p className="text-stone-400 text-sm">{profile?.email}</p>
-        <p className="text-stone-600 text-xs mt-1">Member since {memberSince}</p>
+        <p className="text-stone-600 text-xs mt-1">{t('profile.memberSince', { date: memberSince })}</p>
+        <div className="mt-3"><LanguageToggle /></div>
       </header>
 
       {/* Quick stats */}
       <div className="grid grid-cols-3 gap-3 mb-6">
-        <StatTile label="Level" value={profile?.current_level ?? 0} />
-        <StatTile label="Total XP" value={profile?.total_xp ?? 0} />
-        <StatTile label="Completed" value={completed} />
+        <StatTile label={t('profile.level')} value={profile?.current_level ?? 0} />
+        <StatTile label={t('stats.totalXp')} value={profile?.total_xp ?? 0} />
+        <StatTile label={t('profile.completed')} value={completed} />
       </div>
 
       {/* Archetype progression ladder */}
-      <SectionTitle>Archetype path</SectionTitle>
+      <SectionTitle>{t('profile.archPath')}</SectionTitle>
       <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 mb-6">
         <div className="flex items-center justify-between mb-3 text-sm">
-          <span className="text-amber-400 font-semibold">{archProgress.current}</span>
+          <span className="text-amber-400 font-semibold">{archName(archProgress.current)}</span>
           <span className="text-stone-500">
-            {archProgress.next ? `${archProgress.percent}% → ${archProgress.next}` : 'Max archetype'}
+            {archProgress.next ? t('profile.toNextPct', { pct: archProgress.percent, next: archName(archProgress.next) }) : t('profile.maxArchetype')}
           </span>
         </div>
         <div className="flex gap-1.5">
@@ -63,7 +71,7 @@ export default function ProfilePage() {
               <div key={tier.archetype} className="flex-1 text-center">
                 <div className={`h-1.5 rounded-full ${reached ? 'bg-amber-500' : 'bg-stone-800'}`} />
                 <p className={`mt-1.5 text-[11px] ${reached ? 'text-stone-300' : 'text-stone-600'}`}>
-                  {tier.archetype}
+                  {archName(tier.archetype)}
                 </p>
               </div>
             )
@@ -72,7 +80,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Badges (placeholder) */}
-      <SectionTitle>Badges</SectionTitle>
+      <SectionTitle>{t('profile.badges')}</SectionTitle>
       <div className="grid grid-cols-4 gap-3 mb-6">
         {['First step', '3-day streak', 'Initiate', 'Quiz ace'].map((b, i) => (
           <div key={b} className="flex flex-col items-center gap-1.5">
@@ -91,14 +99,14 @@ export default function ProfilePage() {
       </div>
 
       {/* Settings */}
-      <SectionTitle>Settings</SectionTitle>
+      <SectionTitle>{t('profile.settings')}</SectionTitle>
       <div className="bg-stone-900 border border-stone-800 rounded-2xl divide-y divide-stone-800 mb-6 overflow-hidden">
         {profile?.is_admin && (
-          <SettingRow label="⚙️ Admin (CMS)" onClick={() => router.push('/admin')} />
+          <SettingRow label={t('profile.admin')} onClick={() => router.push('/admin')} />
         )}
-        <SettingRow label="Edit account" onClick={() => {}} />
-        <SettingRow label="Notifications" onClick={() => {}} />
-        <SettingRow label="Sign out" danger onClick={handleSignOut} />
+        <SettingRow label={t('profile.editAccount')} onClick={() => {}} />
+        <SettingRow label={t('profile.notifications')} onClick={() => {}} />
+        <SettingRow label={t('profile.signOut')} danger onClick={handleSignOut} />
       </div>
     </div>
   )
@@ -126,7 +134,7 @@ function SettingRow({ label, onClick, danger }) {
       }`}
     >
       <span className="text-sm">{label}</span>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-stone-600" aria-hidden="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-stone-600 rtl-flip" aria-hidden="true">
         <path d="m9 18 6-6-6-6" />
       </svg>
     </button>

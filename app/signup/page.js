@@ -5,9 +5,12 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabaseClient'
+import { useT } from '../lib/i18n'
+import LanguageToggle from '../components/LanguageToggle'
 
 export default function SignupPage() {
   const router = useRouter()
+  const t = useT()
 
   // These hold whatever the user types into the form fields
   const [email, setEmail] = useState('')
@@ -44,7 +47,7 @@ export default function SignupPage() {
       // If "Confirm email" is enabled in Supabase, signUp returns no session yet.
       // Don't push to /learn (they'd bounce back) — tell them to confirm + log in.
       if (!data.session) {
-        setNotice('Account created. Check your email to confirm, then log in.')
+        setNotice(t('signup.confirmNotice'))
         setIsLogin(true)
         setLoading(false)
         return
@@ -58,17 +61,18 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-stone-900 px-4">
       <div className="w-full max-w-sm bg-stone-800 rounded-lg p-8 shadow-xl">
-        <h1 className="text-2xl font-bold text-amber-400 mb-2 text-center">
-          Awaken the King Within
+        <div className="flex justify-end mb-2"><LanguageToggle /></div>
+        <h1 className="text-2xl font-bold text-amber-400 mb-2 text-center font-display">
+          {t('signup.title')}
         </h1>
         <p className="text-stone-400 text-sm text-center mb-6">
-          {isLogin ? 'Return to your path.' : 'Begin your journey.'}
+          {isLogin ? t('signup.subtitleLogin') : t('signup.subtitleSignup')}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
             type="email"
-            placeholder="Email"
+            placeholder={t('signup.email')}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -76,7 +80,7 @@ export default function SignupPage() {
           />
           <input
             type="password"
-            placeholder="Password"
+            placeholder={t('signup.password')}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -96,7 +100,7 @@ export default function SignupPage() {
             disabled={loading}
             className="w-full bg-amber-600 hover:bg-amber-500 text-stone-900 font-semibold py-2 rounded transition disabled:opacity-50"
           >
-            {loading ? 'Please wait...' : isLogin ? 'Log In' : 'Start the Journey'}
+            {loading ? t('signup.wait') : isLogin ? t('signup.login') : t('signup.start')}
           </button>
         </form>
 
@@ -104,7 +108,7 @@ export default function SignupPage() {
           onClick={() => setIsLogin(!isLogin)}
           className="w-full text-stone-400 text-sm mt-4 hover:text-amber-400 transition"
         >
-          {isLogin ? "New here? Create an account" : 'Already on the path? Log in'}
+          {isLogin ? t('signup.toSignup') : t('signup.toLogin')}
         </button>
       </div>
     </div>

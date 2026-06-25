@@ -2,6 +2,7 @@
 
 import { useAppData } from '../../lib/appData'
 import { getArchetypeProgress } from '../../lib/archetypes'
+import { useT } from '../../lib/i18n'
 
 const DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
@@ -35,10 +36,15 @@ function calcStreak(journalEntries) {
 }
 
 export default function StatsPage() {
+  const t = useT()
   const { profile, levels, progress, xpEvents, journalEntries, loading } = useAppData()
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center text-stone-400">Loading…</div>
+    return <div className="min-h-screen flex items-center justify-center text-stone-400">{t('common.loading')}</div>
+  }
+  const archName = (a) => {
+    const k = t('arch.' + a)
+    return k === 'arch.' + a ? a : k
   }
 
   const totalXp = profile?.total_xp ?? 0
@@ -62,18 +68,18 @@ export default function StatsPage() {
   return (
     <div className="text-white max-w-xl mx-auto px-4">
       <header className="pt-safe pt-8 pb-4">
-        <h1 className="font-display text-2xl text-amber-400">Analytics</h1>
-        <p className="text-stone-400 text-sm">Live — updates as you learn and journal</p>
+        <h1 className="font-display text-2xl text-amber-400">{t('stats.title')}</h1>
+        <p className="text-stone-400 text-sm">{t('stats.subtitle')}</p>
       </header>
 
       <div className="grid grid-cols-2 gap-3 mb-6">
-        <MetricCard label="Total XP" value={totalXp} sub={arch.next ? `→ ${arch.next}` : 'Max archetype'} />
-        <MetricCard label="Courses completed" value={completed} sub={`of ${levels.length}`} />
-        <MetricCard label="Journal streak" value={`${streak}🔥`} sub={`${journalsDone} entries`} />
-        <MetricCard label="Quiz accuracy" value={`${accuracy}%`} sub={`${quizCorrect}/${quizTotal} correct`} />
+        <MetricCard label={t('stats.totalXp')} value={totalXp} sub={arch.next ? t('learn.toNext', { next: archName(arch.next) }) : t('stats.maxArchetype')} />
+        <MetricCard label={t('stats.coursesCompleted')} value={completed} sub={t('stats.ofN', { n: levels.length })} />
+        <MetricCard label={t('stats.journalStreak')} value={`${streak}🔥`} sub={t('stats.entries', { n: journalsDone })} />
+        <MetricCard label={t('stats.quizAccuracy')} value={`${accuracy}%`} sub={t('stats.correct', { a: quizCorrect, b: quizTotal })} />
       </div>
 
-      <SectionTitle>This week · {weekTotal} XP</SectionTitle>
+      <SectionTitle>{t('stats.thisWeek', { n: weekTotal })}</SectionTitle>
       <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 mb-6">
         <div className="flex items-end justify-between gap-2 h-36">
           {week.map((d, i) => (
@@ -89,10 +95,10 @@ export default function StatsPage() {
         </div>
       </div>
 
-      <SectionTitle>Path completion</SectionTitle>
+      <SectionTitle>{t('stats.pathCompletion')}</SectionTitle>
       <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 mb-6">
         <div className="flex items-center justify-between mb-2 text-sm">
-          <span className="text-stone-300">{completed} of {levels.length} courses</span>
+          <span className="text-stone-300">{t('stats.ofCourses', { a: completed, b: levels.length })}</span>
           <span className="text-amber-400 font-semibold">{completionPct}%</span>
         </div>
         <div className="h-3 rounded-full bg-stone-800 overflow-hidden">
@@ -100,11 +106,11 @@ export default function StatsPage() {
         </div>
       </div>
 
-      <SectionTitle>Activity breakdown</SectionTitle>
+      <SectionTitle>{t('stats.breakdown')}</SectionTitle>
       <div className="bg-stone-900 border border-stone-800 rounded-2xl divide-y divide-stone-800 mb-6 overflow-hidden">
-        <BreakdownRow label="Courses completed" value={completed} />
-        <BreakdownRow label="Journal entries" value={journalsDone} />
-        <BreakdownRow label="XP events logged" value={xpEvents.length} />
+        <BreakdownRow label={t('stats.coursesCompleted')} value={completed} />
+        <BreakdownRow label={t('stats.journalEntries')} value={journalsDone} />
+        <BreakdownRow label={t('stats.xpEvents')} value={xpEvents.length} />
       </div>
     </div>
   )

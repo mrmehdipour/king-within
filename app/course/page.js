@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../lib/supabaseClient'
 import { awardXp } from '../lib/xp'
+import { useT } from '../lib/i18n'
 
 // Three sequential activities per course. Order is fixed and you cannot skip.
 const STEPS = ['reading', 'thinking', 'quiz']
@@ -18,6 +19,7 @@ export default function CoursePage() {
 
 function CoursePlayer() {
   const router = useRouter()
+  const t = useT()
   const params = useSearchParams()
   const levelId = params.get('id') != null ? Number(params.get('id')) : null
 
@@ -71,14 +73,14 @@ function CoursePlayer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [levelId])
 
-  if (loading) return <CenterMessage>Loading course…</CenterMessage>
+  if (loading) return <CenterMessage>{t('course.loading')}</CenterMessage>
 
   if (!level) {
     return (
       <CenterMessage>
-        Course not found.
+        {t('course.notFound')}
         <button onClick={() => router.push('/learn')} className="mt-4 text-amber-400 underline">
-          Back to the path
+          {t('course.back')}
         </button>
       </CenterMessage>
     )
@@ -197,9 +199,10 @@ function ActivityLabel({ icon, children }) {
 }
 
 function ReadingStep({ level, onContinue }) {
+  const t = useT()
   return (
     <div className="animate-pop">
-      <ActivityLabel icon="📖">Reading comprehension</ActivityLabel>
+      <ActivityLabel icon="📖">{t('course.reading')}</ActivityLabel>
       <h1 className="font-display text-3xl text-white mb-2">{level.title}</h1>
       {level.content_body && <p className="text-stone-400 mb-6">{level.content_body}</p>}
       <article className="space-y-4 text-stone-200 leading-relaxed text-[17px]">
@@ -207,15 +210,16 @@ function ReadingStep({ level, onContinue }) {
           <p key={i}>{para}</p>
         ))}
       </article>
-      <PrimaryButton onClick={onContinue} className="mt-8">Continue</PrimaryButton>
+      <PrimaryButton onClick={onContinue} className="mt-8">{t('course.continue')}</PrimaryButton>
     </div>
   )
 }
 
 function ThinkingStep({ level, value, onChange, onContinue }) {
+  const t = useT()
   return (
     <div className="animate-pop">
-      <ActivityLabel icon="🧠">Critical thinking</ActivityLabel>
+      <ActivityLabel icon="🧠">{t('course.thinking')}</ActivityLabel>
       <h2 className="text-xl font-semibold text-white mb-4 leading-snug">
         {level.critical_thinking_prompt}
       </h2>
@@ -223,33 +227,34 @@ function ThinkingStep({ level, value, onChange, onContinue }) {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         rows={8}
-        placeholder="Think it through and write your honest answer…"
+        placeholder={t('course.thinkingPlaceholder')}
         className="w-full px-4 py-3 rounded-xl bg-stone-900 text-white placeholder-stone-600 border border-stone-700 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
       />
       <p className="text-stone-600 text-xs mt-2">
-        There are no wrong answers here — but an honest one moves you forward.
+        {t('course.thinkingHint')}
       </p>
       <PrimaryButton onClick={onContinue} disabled={!value.trim()} className="mt-6">
-        Continue
+        {t('course.continue')}
       </PrimaryButton>
     </div>
   )
 }
 
 function QuizStep({ questions, answers, onAnswer, allAnswered, submitting, onFinish }) {
+  const t = useT()
   if (questions.length === 0) {
     return (
       <div className="animate-pop">
-        <ActivityLabel icon="✅">Quiz</ActivityLabel>
-        <p className="text-stone-400 mb-6">No quiz for this course.</p>
-        <PrimaryButton onClick={onFinish} disabled={submitting}>Finish course</PrimaryButton>
+        <ActivityLabel icon="✅">{t('course.quiz')}</ActivityLabel>
+        <p className="text-stone-400 mb-6">{t('course.noQuiz')}</p>
+        <PrimaryButton onClick={onFinish} disabled={submitting}>{t('course.finish')}</PrimaryButton>
       </div>
     )
   }
   return (
     <div className="animate-pop">
-      <ActivityLabel icon="✅">Quiz</ActivityLabel>
-      <h2 className="text-xl font-semibold text-white mb-6">Test what you read</h2>
+      <ActivityLabel icon="✅">{t('course.quiz')}</ActivityLabel>
+      <h2 className="text-xl font-semibold text-white mb-6">{t('course.quizTitle')}</h2>
       <div className="space-y-6">
         {questions.map((q, qi) => {
           const selected = answers[q.id]
@@ -290,36 +295,41 @@ function QuizStep({ questions, answers, onAnswer, allAnswered, submitting, onFin
         })}
       </div>
       <PrimaryButton onClick={onFinish} disabled={!allAnswered || submitting} className="mt-8">
-        {submitting ? 'Saving…' : 'Finish course'}
+        {submitting ? t('course.saving') : t('course.finish')}
       </PrimaryButton>
     </div>
   )
 }
 
 function CompletionScreen({ level, result, onDone }) {
+  const t = useT()
   const { xpGained, score, total, evolvedTo } = result
+  const archName = (a) => {
+    const k = t('arch.' + a)
+    return k === 'arch.' + a ? a : k
+  }
   return (
     <div className="min-h-screen flex items-center justify-center px-4 text-center">
       <div className="animate-pop max-w-sm">
         {evolvedTo ? (
           <>
-            <p className="text-stone-400 mb-1">You have evolved</p>
-            <h1 className="font-display text-5xl text-amber-400 mb-6">{evolvedTo}</h1>
+            <p className="text-stone-400 mb-1">{t('course.evolved')}</p>
+            <h1 className="font-display text-5xl text-amber-400 mb-6">{archName(evolvedTo)}</h1>
           </>
         ) : (
           <>
             <div className="text-6xl mb-4">👑</div>
-            <h1 className="font-display text-3xl text-amber-400 mb-2">Course complete</h1>
+            <h1 className="font-display text-3xl text-amber-400 mb-2">{t('course.complete')}</h1>
             <p className="text-stone-400 mb-6">{level.title}</p>
           </>
         )}
 
         <div className="flex gap-3 justify-center mb-8">
-          <Pill label="XP earned" value={`+${xpGained}`} />
-          {total > 0 && <Pill label="Quiz" value={`${score}/${total}`} />}
+          <Pill label={t('course.xpEarned')} value={`+${xpGained}`} />
+          {total > 0 && <Pill label={t('course.quiz')} value={`${score}/${total}`} />}
         </div>
 
-        <PrimaryButton onClick={onDone}>Continue the path</PrimaryButton>
+        <PrimaryButton onClick={onDone}>{t('course.continuePath')}</PrimaryButton>
       </div>
     </div>
   )

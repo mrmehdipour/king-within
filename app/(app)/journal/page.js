@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import { useAppData } from '../../lib/appData'
 import { awardXp, JOURNAL_XP } from '../../lib/xp'
+import { useLang } from '../../lib/i18n'
 
 const today = () => new Date().toISOString().slice(0, 10)
 
@@ -22,6 +23,8 @@ function calcStreak(history) {
 }
 
 export default function JournalPage() {
+  const { t, locale } = useLang()
+  const dateLocale = locale === 'fa' ? 'fa-IR' : undefined
   const { refresh } = useAppData()
   const [loading, setLoading] = useState(true)
   const [entry, setEntry] = useState(null)
@@ -106,7 +109,7 @@ export default function JournalPage() {
   }
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center text-stone-400">Loading today&apos;s question…</div>
+    return <div className="min-h-screen flex items-center justify-center text-stone-400">{t('journal.loading')}</div>
   }
 
   const streak = calcStreak(history)
@@ -115,43 +118,43 @@ export default function JournalPage() {
     <div className="text-white max-w-xl mx-auto px-4">
       <header className="pt-safe pt-8 pb-4 flex items-end justify-between">
         <div>
-          <h1 className="font-display text-2xl text-amber-400">Daily Journal</h1>
+          <h1 className="font-display text-2xl text-amber-400">{t('journal.title')}</h1>
           <p className="text-stone-400 text-sm">
-            {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+            {new Date().toLocaleDateString(dateLocale, { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
         </div>
         <div className="text-right">
           <p className="text-2xl font-bold text-amber-400 leading-none">{streak}🔥</p>
-          <p className="text-stone-500 text-xs">day streak</p>
+          <p className="text-stone-500 text-xs">{t('journal.streak')}</p>
         </div>
       </header>
 
       {noQuestions ? (
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 text-center text-stone-400">
-          You&apos;ve answered every question in the bank. More are on the way. 👑
+          {t('journal.exhausted')}
         </div>
       ) : (
         <>
           <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 mb-4">
-            <p className="text-xs uppercase tracking-[0.18em] text-amber-500 mb-2">Today&apos;s question</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-amber-500 mb-2">{t('journal.todays')}</p>
             <p className="text-lg text-white font-medium leading-snug">{prompt}</p>
           </div>
 
-          <label className="block text-stone-400 text-sm mb-1">Your answer</label>
+          <label className="block text-stone-400 text-sm mb-1">{t('journal.yourAnswer')}</label>
           <textarea
             value={answer}
             onChange={(e) => setAnswer(e.target.value)}
             rows={5}
-            placeholder="Answer honestly…"
+            placeholder={t('journal.answerPlaceholder')}
             className="w-full px-4 py-3 rounded-xl bg-stone-900 text-white placeholder-stone-600 border border-stone-700 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none mb-4"
           />
 
-          <label className="block text-stone-400 text-sm mb-1">Open journal <span className="text-stone-600">(optional)</span></label>
+          <label className="block text-stone-400 text-sm mb-1">{t('journal.open')} <span className="text-stone-600">{t('journal.optional')}</span></label>
           <textarea
             value={free}
             onChange={(e) => setFree(e.target.value)}
             rows={4}
-            placeholder="Anything else on your mind…"
+            placeholder={t('journal.openPlaceholder')}
             className="w-full px-4 py-3 rounded-xl bg-stone-900 text-white placeholder-stone-600 border border-stone-700 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none mb-4"
           />
 
@@ -160,11 +163,11 @@ export default function JournalPage() {
             disabled={saving || !answer.trim()}
             className="w-full bg-amber-500 hover:bg-amber-400 text-stone-900 font-bold py-3.5 rounded-xl transition disabled:opacity-40"
           >
-            {saving ? 'Saving…' : done ? 'Update entry' : `Save entry (+${JOURNAL_XP} XP)`}
+            {saving ? t('course.saving') : done ? t('journal.update') : t('journal.save', { xp: JOURNAL_XP })}
           </button>
           {done && (
             <p className="text-green-400 text-sm text-center mt-3">
-              ✓ Done for today{justXp ? ` — +${JOURNAL_XP} XP earned` : ''}. Come back tomorrow.
+              {justXp ? t('journal.doneTodayXp', { xp: JOURNAL_XP }) : t('journal.doneToday')}
             </p>
           )}
         </>
@@ -173,12 +176,12 @@ export default function JournalPage() {
       {/* History */}
       {history.length > 0 && (
         <div className="mt-8">
-          <h2 className="text-stone-400 text-sm font-semibold mb-2">Past entries</h2>
+          <h2 className="text-stone-400 text-sm font-semibold mb-2">{t('journal.past')}</h2>
           <div className="space-y-2">
             {history.filter((h) => h.completed && h.entry_date !== today()).map((h) => (
               <div key={h.id} className="bg-stone-900 border border-stone-800 rounded-xl p-3">
                 <p className="text-stone-500 text-xs mb-1">
-                  {new Date(h.entry_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                  {new Date(h.entry_date).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' })}
                 </p>
                 <p className="text-stone-300 text-sm">{h.journal_questions?.prompt}</p>
                 {h.answer_text && <p className="text-stone-500 text-sm mt-1 line-clamp-2">{h.answer_text}</p>}

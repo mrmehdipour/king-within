@@ -3,16 +3,18 @@
 import { useRouter } from 'next/navigation'
 import { useAppData } from '../../lib/appData'
 import { getArchetypeProgress } from '../../lib/archetypes'
+import { useT } from '../../lib/i18n'
 import PathMap from '../../components/PathMap'
 
 export default function LearnPage() {
   const router = useRouter()
+  const t = useT()
   const { profile, levels, loading, getLevelStatus } = useAppData()
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-stone-400">Loading your path…</p>
+        <p className="text-stone-400">{t('learn.loading')}</p>
       </div>
     )
   }
@@ -20,6 +22,10 @@ export default function LearnPage() {
   // Current node = first available (unlocked, not yet completed) level.
   const currentLevel = levels.find((l) => getLevelStatus(l) === 'available')
   const archProgress = getArchetypeProgress(profile?.total_xp ?? 0)
+  const archName = (a) => {
+    const k = t('arch.' + a)
+    return k === 'arch.' + a ? a : k
+  }
 
   return (
     <div className="text-white">
@@ -28,15 +34,15 @@ export default function LearnPage() {
         <div className="max-w-xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <p className="text-stone-400 text-xs uppercase tracking-wide">Current archetype</p>
+              <p className="text-stone-400 text-xs uppercase tracking-wide">{t('learn.currentArchetype')}</p>
               <h1 className="font-display text-2xl text-amber-400 leading-tight">
-                {profile?.current_archetype}
+                {archName(profile?.current_archetype)}
               </h1>
             </div>
             <div className="flex items-center gap-1.5 bg-stone-900 border border-stone-800 rounded-full px-3 py-1.5">
               <BoltIcon />
               <span className="text-amber-400 font-bold">{profile?.total_xp ?? 0}</span>
-              <span className="text-stone-500 text-xs">XP</span>
+              <span className="text-stone-500 text-xs">{t('common.xp')}</span>
             </div>
           </div>
 
@@ -48,7 +54,7 @@ export default function LearnPage() {
               />
             </div>
             <p className="text-stone-400 text-xs whitespace-nowrap">
-              {archProgress.next ? `→ ${archProgress.next}` : '👑 Max'}
+              {archProgress.next ? t('learn.toNext', { next: archName(archProgress.next) }) : t('learn.max')}
             </p>
           </div>
         </div>
@@ -56,7 +62,7 @@ export default function LearnPage() {
 
       <main className="max-w-xl mx-auto px-4 pt-8">
         {levels.length === 0 ? (
-          <p className="text-center text-stone-500 py-24">No levels yet.</p>
+          <p className="text-center text-stone-500 py-24">{t('learn.empty')}</p>
         ) : (
           <PathMap
             levels={levels}

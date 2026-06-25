@@ -1,6 +1,7 @@
 'use client'
 
 import { useLayoutEffect, useRef, useState } from 'react'
+import { useT } from '../lib/i18n'
 
 // Side-to-side offsets that give the path its winding shape (repeats every 8).
 const WAVE = [0, 55, 80, 55, 0, -55, -80, -55]
@@ -112,17 +113,22 @@ export default function PathMap({ levels, getLevelStatus, currentLevelId, onSele
 }
 
 function UnitBanner({ stage }) {
+  const t = useT()
+  const archLabel = t('arch.' + stage)
   return (
     <div className="mt-10 mb-5 first:mt-0">
       <div className="bg-stone-800/80 border border-stone-700 rounded-2xl px-5 py-3 text-center">
-        <p className="text-stone-500 text-[11px] uppercase tracking-[0.2em]">Path of the</p>
-        <p className="font-display text-amber-400 text-lg tracking-wide">{stage}</p>
+        <p className="text-stone-500 text-[11px] uppercase tracking-[0.2em]">{t('learn.pathOfThe')}</p>
+        <p className="font-display text-amber-400 text-lg tracking-wide">
+          {archLabel === 'arch.' + stage ? stage : archLabel}
+        </p>
       </div>
     </div>
   )
 }
 
 function PathNode({ ref, level, status, isCurrent, onSelect }) {
+  const t = useT()
   const isLocked = status === 'locked'
   const isCompleted = status === 'completed'
   const clickable = !isLocked
@@ -147,7 +153,7 @@ function PathNode({ ref, level, status, isCurrent, onSelect }) {
       {isCurrent && (
         <div className="absolute -top-9 animate-bounce z-10">
           <div className="relative bg-white text-stone-900 text-xs font-extrabold px-3 py-1 rounded-lg uppercase tracking-wide">
-            Start
+            {t('learn.start')}
             <div className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2 h-2 bg-white rotate-45" />
           </div>
         </div>

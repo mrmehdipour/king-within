@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Cinzel } from "next/font/google";
+import { Geist, Geist_Mono, Cinzel, Vazirmatn } from "next/font/google";
 import "./globals.css";
+import { LanguageProvider } from "./lib/i18n";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -12,12 +13,17 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// Display serif used for the brand wordmark and big headings — gives the
-// "royal" feel without weighing down body copy.
+// Display serif for the brand wordmark / big headings (Latin).
 const cinzel = Cinzel({
   variable: "--font-cinzel",
   subsets: ["latin"],
   weight: ["500", "600", "700"],
+});
+
+// Persian/Arabic-script font, applied when <html lang="fa">.
+const vazirmatn = Vazirmatn({
+  variable: "--font-vazir",
+  subsets: ["arabic"],
 });
 
 export const metadata: Metadata = {
@@ -27,7 +33,6 @@ export const metadata: Metadata = {
   applicationName: "King Within",
 };
 
-// App-like mobile behavior: cover the notch, no pinch-zoom, fixed scale.
 export const viewport: Viewport = {
   themeColor: "#0c0a09",
   width: "device-width",
@@ -37,6 +42,10 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+// Set lang/dir before first paint to avoid an LTR flash on .ir (and honor an
+// explicit ?lang= / saved choice). Mirrors getInitialLocale() in lib/i18n.
+const localeBootstrap = `(function(){try{var p=new URLSearchParams(location.search).get('lang');var s=localStorage.getItem('kw_locale');var l=(p==='fa'||p==='en')?p:(s==='fa'||s==='en')?s:(location.hostname.indexOf('.ir',location.hostname.length-3)!==-1?'fa':'en');document.documentElement.lang=l;document.documentElement.dir=(l==='fa')?'rtl':'ltr';}catch(e){}})();`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -45,9 +54,14 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${cinzel.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${cinzel.variable} ${vazirmatn.variable} h-full antialiased`}
     >
-      <body className="min-h-full">{children}</body>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: localeBootstrap }} />
+      </head>
+      <body className="min-h-full">
+        <LanguageProvider>{children}</LanguageProvider>
+      </body>
     </html>
   );
 }
