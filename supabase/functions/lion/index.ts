@@ -14,7 +14,9 @@
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 
-const MODEL = 'gemini-1.5-flash'
+// gemini-1.5-flash was retired; 2.0-flash is the current free model.
+// Override with a GEMINI_MODEL secret if you want a different one.
+const MODEL = Deno.env.get('GEMINI_MODEL') ?? 'gemini-2.0-flash'
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`
 
 const cors = {
@@ -196,6 +198,7 @@ Deno.serve(async (req) => {
 
     if (!res.ok) {
       const detail = await res.text()
+      console.error('Gemini error', MODEL, res.status, detail) // shows in function logs
       // 429 = rate limited, 503 = model overloaded — both are "try again" cases.
       if (res.status === 429) {
         return json({ error: 'The Lion is being asked too much right now. Try again in a few seconds.', code: 'rate_limit', detail }, 429)

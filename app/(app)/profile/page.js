@@ -123,6 +123,7 @@ function LionCard({ t, locale, isAdmin }) {
   const [insight, setInsight] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  const [detail, setDetail] = useState(null)
   const [loaded, setLoaded] = useState(false)
   const [conn, setConn] = useState(null) // null | 'testing' | 'live' | 'down'
 
@@ -139,11 +140,13 @@ function LionCard({ t, locale, isAdmin }) {
   async function generate() {
     setBusy(true)
     setError(null)
+    setDetail(null)
     try {
       const res = await askLion({ skill: 'personality', locale })
       setInsight({ content: res.content, locale: res.locale, created_at: new Date().toISOString() })
     } catch (e) {
       setError(e.code === 'rate_limit' ? t('lion.rateLimit') : (e.message || t('lion.error')))
+      if (e.detail) setDetail(e.detail)
     } finally {
       setBusy(false)
     }
@@ -184,6 +187,9 @@ function LionCard({ t, locale, isAdmin }) {
         )}
 
         {error && <p className="text-red-400 text-xs mt-3">{error}</p>}
+        {isAdmin && detail && (
+          <pre className="text-stone-500 text-[10px] mt-2 whitespace-pre-wrap break-words bg-stone-950 rounded-lg p-2 max-h-32 overflow-auto">{detail}</pre>
+        )}
 
         <button
           onClick={generate}

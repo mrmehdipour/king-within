@@ -17,6 +17,7 @@ export async function askLion({ skill = 'personality', locale = 'en' } = {}) {
     try { body = await error.context?.json?.() } catch { /* ignore */ }
     const err = new Error(body?.error || error.message || 'The Lion could not respond.')
     err.code = body?.code // 'rate_limit' | 'upstream' | 'auth' | 'empty' | ...
+    err.detail = body?.detail // raw upstream message (shown to admins for debugging)
     throw err
   }
   if (data?.error) {
