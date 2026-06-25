@@ -1,7 +1,8 @@
 'use client'
 
 import { useLayoutEffect, useRef, useState } from 'react'
-import { useT } from '../lib/i18n'
+import { useT, useLang } from '../lib/i18n'
+import { localized } from '../lib/localized'
 
 // Side-to-side offsets that give the path its winding shape (repeats every 8).
 const WAVE = [0, 55, 80, 55, 0, -55, -80, -55]
@@ -128,7 +129,8 @@ function UnitBanner({ stage }) {
 }
 
 function PathNode({ ref, level, status, isCurrent, onSelect }) {
-  const t = useT()
+  const { t, locale } = useLang()
+  const title = localized(level, 'title', locale)
   const isLocked = status === 'locked'
   const isCompleted = status === 'completed'
   const clickable = !isLocked
@@ -162,7 +164,7 @@ function PathNode({ ref, level, status, isCurrent, onSelect }) {
       <button
         onClick={() => clickable && onSelect(level.level_id)}
         disabled={!clickable}
-        aria-label={`Level ${level.level_number}: ${level.title}${isLocked ? ' (locked)' : ''}`}
+        aria-label={`Level ${level.level_number}: ${title}${isLocked ? ' (locked)' : ''}`}
         className={`w-[76px] h-[76px] rounded-full border-4 ${ring} ${face}
           flex items-center justify-center transition active:translate-y-1 active:shadow-none
           ${clickable ? 'cursor-pointer hover:brightness-110' : 'cursor-not-allowed'}
@@ -175,7 +177,7 @@ function PathNode({ ref, level, status, isCurrent, onSelect }) {
         className={`mt-2 text-xs text-center max-w-[150px] leading-tight font-medium
           ${isLocked ? 'text-stone-600' : 'text-stone-300'}`}
       >
-        {level.title}
+        {title}
       </p>
     </div>
   )

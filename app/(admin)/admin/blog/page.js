@@ -65,6 +65,11 @@ function Tracks() {
           <Field label="Title"><input className={INPUT} value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} /></Field>
           <Field label="Slug (auto if blank)"><input className={INPUT} value={editing.slug} onChange={(e) => setEditing({ ...editing, slug: e.target.value })} /></Field>
           <Field label="Description"><textarea rows={2} className={INPUT} value={editing.description || ''} onChange={(e) => setEditing({ ...editing, description: e.target.value })} /></Field>
+          <div className="border-t border-stone-800 pt-3 space-y-3">
+            <p className="text-amber-400 text-xs">🇮🇷 فارسی</p>
+            <Field label="عنوان (Title)"><input dir="rtl" className={INPUT} value={editing.title_fa || ''} onChange={(e) => setEditing({ ...editing, title_fa: e.target.value })} /></Field>
+            <Field label="توضیح (Description)"><textarea dir="rtl" rows={2} className={INPUT} value={editing.description_fa || ''} onChange={(e) => setEditing({ ...editing, description_fa: e.target.value })} /></Field>
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Sort order"><input type="number" className={INPUT} value={editing.sort_order} onChange={(e) => setEditing({ ...editing, sort_order: e.target.value })} /></Field>
             <label className="flex items-end gap-2 text-sm text-stone-300 pb-2"><input type="checkbox" checked={!!editing.published} onChange={(e) => setEditing({ ...editing, published: e.target.checked })} /> Published</label>
@@ -137,6 +142,12 @@ function Posts() {
           </div>
           <Field label="Excerpt"><textarea rows={2} className={INPUT} value={editing.excerpt || ''} onChange={(e) => setEditing({ ...editing, excerpt: e.target.value })} /></Field>
           <Field label="Body (Markdown — ## heading, > quote, - list)"><textarea rows={12} className={INPUT + ' font-mono'} value={editing.body || ''} onChange={(e) => setEditing({ ...editing, body: e.target.value })} /></Field>
+          <div className="border-t border-stone-800 pt-3 space-y-3">
+            <p className="text-amber-400 text-xs">🇮🇷 فارسی</p>
+            <Field label="عنوان (Title)"><input dir="rtl" className={INPUT} value={editing.title_fa || ''} onChange={(e) => setEditing({ ...editing, title_fa: e.target.value })} /></Field>
+            <Field label="چکیده (Excerpt)"><textarea dir="rtl" rows={2} className={INPUT} value={editing.excerpt_fa || ''} onChange={(e) => setEditing({ ...editing, excerpt_fa: e.target.value })} /></Field>
+            <Field label="متن (Body — Markdown)"><textarea dir="rtl" rows={12} className={INPUT + ' font-mono'} value={editing.body_fa || ''} onChange={(e) => setEditing({ ...editing, body_fa: e.target.value })} /></Field>
+          </div>
           <label className="flex items-center gap-2 text-sm text-stone-300"><input type="checkbox" checked={!!editing.published} onChange={(e) => setEditing({ ...editing, published: e.target.checked })} /> Published</label>
           <div className="flex items-center gap-3"><button onClick={save} className="bg-amber-500 text-stone-900 font-semibold px-4 py-2 rounded-lg text-sm">Save post</button>{msg && <span className="text-stone-400 text-sm">{msg}</span>}</div>
           <p className="text-stone-600 text-xs">Published posts appear on the next web deploy.</p>

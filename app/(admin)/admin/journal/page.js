@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { listJournalQuestions, bulkAddJournalQuestions, deleteJournalQuestion } from '../../../lib/adminData'
+import { listJournalQuestions, bulkAddJournalQuestions, updateJournalQuestion, deleteJournalQuestion } from '../../../lib/adminData'
 
 const INPUT = 'w-full px-3 py-2 rounded-lg bg-stone-950 border border-stone-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500'
 
@@ -56,12 +56,31 @@ export default function JournalAdmin() {
       </div>
       <div className="space-y-1.5">
         {filtered.map((q) => (
-          <div key={q.id} className="flex items-start justify-between bg-stone-900 border border-stone-800 rounded-lg px-3 py-2">
-            <span className="text-sm text-stone-200">{q.prompt} {q.category && <span className="text-stone-600 text-xs">· {q.category}</span>}</span>
-            <button onClick={() => remove(q.id)} className="text-xs text-stone-600 hover:text-red-400 ml-3 shrink-0">Delete</button>
-          </div>
+          <JQRow key={q.id} q={q} onDelete={() => remove(q.id)} />
         ))}
         {filtered.length === 0 && <p className="text-stone-600 text-sm">No questions{search ? ' match your search' : ' yet'}.</p>}
+      </div>
+    </div>
+  )
+}
+
+function JQRow({ q, onDelete }) {
+  const [fa, setFa] = useState(q.prompt_fa || '')
+  const [saved, setSaved] = useState(false)
+  async function saveFa() {
+    await updateJournalQuestion(q.id, { prompt_fa: fa || null })
+    setSaved(true)
+    setTimeout(() => setSaved(false), 1000)
+  }
+  return (
+    <div className="bg-stone-900 border border-stone-800 rounded-lg px-3 py-2">
+      <div className="flex items-start justify-between">
+        <span className="text-sm text-stone-200">{q.prompt} {q.category && <span className="text-stone-600 text-xs">· {q.category}</span>}</span>
+        <button onClick={onDelete} className="text-xs text-stone-600 hover:text-red-400 ml-3 shrink-0">Delete</button>
+      </div>
+      <div className="flex items-center gap-2 mt-1.5">
+        <input dir="rtl" className={INPUT} value={fa} placeholder="ترجمهٔ فارسی…" onChange={(e) => setFa(e.target.value)} onBlur={saveFa} />
+        {saved && <span className="text-green-400 text-xs shrink-0">✓</span>}
       </div>
     </div>
   )

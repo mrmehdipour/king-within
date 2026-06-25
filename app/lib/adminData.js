@@ -53,4 +53,5 @@ export const listJournalQuestions = () =>
   supabase.from('journal_questions').select('*').order('id', { ascending: false })
 export const bulkAddJournalQuestions = (prompts, category = 'custom') =>
   supabase.from('journal_questions').insert(prompts.map((p) => ({ prompt: p, category, published: true })))
+export const updateJournalQuestion = (id, patch) => supabase.from('journal_questions').update(patch).eq('id', id)
 export const deleteJournalQuestion = (id) => supabase.from('journal_questions').delete().eq('id', id)

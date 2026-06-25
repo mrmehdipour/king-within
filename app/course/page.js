@@ -4,7 +4,8 @@ import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../lib/supabaseClient'
 import { awardXp } from '../lib/xp'
-import { useT } from '../lib/i18n'
+import { useT, useLang } from '../lib/i18n'
+import { localized } from '../lib/localized'
 
 // Three sequential activities per course. Order is fixed and you cannot skip.
 const STEPS = ['reading', 'thinking', 'quiz']
@@ -19,7 +20,7 @@ export default function CoursePage() {
 
 function CoursePlayer() {
   const router = useRouter()
-  const t = useT()
+  const { t, locale } = useLang()
   const params = useSearchParams()
   const levelId = params.get('id') != null ? Number(params.get('id')) : null
 
@@ -89,6 +90,23 @@ function CoursePlayer() {
   const questions = level.questions ?? []
   const step = STEPS[stepIndex]
 
+  // Localized copies for DISPLAY only (logic below still uses raw fields/ids).
+  const L = {
+    ...level,
+    title: localized(level, 'title', locale),
+    content_body: localized(level, 'content_body', locale),
+    reading_text: localized(level, 'reading_text', locale),
+    critical_thinking_prompt: localized(level, 'critical_thinking_prompt', locale),
+  }
+  const displayQuestions = questions.map((q) => ({
+    ...q,
+    prompt: localized(q, 'prompt', locale),
+    options:
+      locale === 'fa' && Array.isArray(q.options_fa) && q.options_fa.length
+        ? q.options_fa
+        : q.options,
+  }))
+
   function next() {
     if (stepIndex < STEPS.length - 1) setStepIndex(stepIndex + 1)
   }
@@ -139,7 +157,7 @@ function CoursePlayer() {
   }
 
   if (finished) {
-    return <CompletionScreen level={level} result={finished} onDone={() => router.push('/learn')} />
+    return <CompletionScreen level={L} result={finished} onDone={() => router.push('/learn')} />
   }
 
   const allAnswered = questions.length > 0 && questions.every((q) => answers[q.id] != null)
@@ -169,14 +187,14 @@ function CoursePlayer() {
       </header>
 
       <main className="flex-1 max-w-xl w-full mx-auto px-4 py-6">
-        {step === 'reading' && <ReadingStep key="r" level={level} onContinue={next} />}
+        {step === 'reading' && <ReadingStep key="r" level={L} onContinue={next} />}
         {step === 'thinking' && (
-          <ThinkingStep key="t" level={level} value={reflection} onChange={setReflection} onContinue={next} />
+          <ThinkingStep key="t" level={L} value={reflection} onChange={setReflection} onContinue={next} />
         )}
         {step === 'quiz' && (
           <QuizStep
             key="q"
-            questions={questions}
+            questions={displayQuestions}
             answers={answers}
             onAnswer={(qid, idx) => setAnswers((a) => (a[qid] != null ? a : { ...a, [qid]: idx }))}
             allAnswered={allAnswered}

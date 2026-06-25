@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabaseClient'
 import { useAppData } from '../../lib/appData'
 import { awardXp, JOURNAL_XP } from '../../lib/xp'
 import { useLang } from '../../lib/i18n'
+import { localized } from '../../lib/localized'
 
 const today = () => new Date().toISOString().slice(0, 10)
 
@@ -43,7 +44,7 @@ export default function JournalPage() {
 
     let { data: existing } = await supabase
       .from('journal_entries')
-      .select('*, journal_questions(prompt)')
+      .select('*, journal_questions(prompt, prompt_fa)')
       .eq('user_id', user.id)
       .eq('entry_date', today())
       .maybeSingle()
@@ -60,20 +61,20 @@ export default function JournalPage() {
       const { data: created } = await supabase
         .from('journal_entries')
         .insert({ user_id: user.id, question_id: question.id, entry_date: today() })
-        .select('*, journal_questions(prompt)')
+        .select('*, journal_questions(prompt, prompt_fa)')
         .single()
       existing = created
     }
 
     setEntry(existing)
-    setPrompt(existing.journal_questions?.prompt || '')
+    setPrompt(localized(existing.journal_questions, 'prompt', locale) || '')
     setAnswer(existing.answer_text || '')
     setFree(existing.free_text || '')
     setDone(!!existing.completed)
 
     const { data: hist } = await supabase
       .from('journal_entries')
-      .select('id, entry_date, answer_text, completed, journal_questions(prompt)')
+      .select('id, entry_date, answer_text, completed, journal_questions(prompt, prompt_fa)')
       .eq('user_id', user.id)
       .order('entry_date', { ascending: false })
       .limit(30)
@@ -183,7 +184,7 @@ export default function JournalPage() {
                 <p className="text-stone-500 text-xs mb-1">
                   {new Date(h.entry_date).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' })}
                 </p>
-                <p className="text-stone-300 text-sm">{h.journal_questions?.prompt}</p>
+                <p className="text-stone-300 text-sm">{localized(h.journal_questions, 'prompt', locale)}</p>
                 {h.answer_text && <p className="text-stone-500 text-sm mt-1 line-clamp-2">{h.answer_text}</p>}
               </div>
             ))}

@@ -62,6 +62,15 @@ html[lang="fa"] .font-display {
   transform: scaleX(-1);
 }
 
+/* Server-rendered bilingual content (blog): show one language per <html lang>.
+   Lets static pages serve both EN and FA from a single build. */
+html[lang="fa"] .lang-en {
+  display: none;
+}
+html:not([lang="fa"]) .lang-fa {
+  display: none;
+}
+
 /* Safe-area helpers for the Capacitor/mobile shell (notches, home indicator). */
 .pt-safe {
   padding-top: env(safe-area-inset-top, 0px);

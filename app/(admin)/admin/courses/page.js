@@ -105,6 +105,14 @@ export default function CoursesAdmin() {
             <Field label="Reading passage (blank line between paragraphs)"><textarea rows={7} className={INPUT} value={editing.reading_text || ''} onChange={(e) => setEditing({ ...editing, reading_text: e.target.value })} /></Field>
             <Field label="Critical-thinking prompt"><textarea rows={2} className={INPUT} value={editing.critical_thinking_prompt || ''} onChange={(e) => setEditing({ ...editing, critical_thinking_prompt: e.target.value })} /></Field>
 
+            <div className="border-t border-stone-800 pt-3 space-y-3">
+              <p className="text-amber-400 text-xs">🇮🇷 فارسی (Persian) — leave blank to fall back to English</p>
+              <Field label="عنوان (Title)"><input dir="rtl" className={INPUT} value={editing.title_fa || ''} onChange={(e) => setEditing({ ...editing, title_fa: e.target.value })} /></Field>
+              <Field label="خلاصه (Summary)"><input dir="rtl" className={INPUT} value={editing.content_body_fa || ''} onChange={(e) => setEditing({ ...editing, content_body_fa: e.target.value })} /></Field>
+              <Field label="متن خواندنی (Reading passage)"><textarea dir="rtl" rows={7} className={INPUT} value={editing.reading_text_fa || ''} onChange={(e) => setEditing({ ...editing, reading_text_fa: e.target.value })} /></Field>
+              <Field label="پرسش تفکر نقادانه (Critical-thinking prompt)"><textarea dir="rtl" rows={2} className={INPUT} value={editing.critical_thinking_prompt_fa || ''} onChange={(e) => setEditing({ ...editing, critical_thinking_prompt_fa: e.target.value })} /></Field>
+            </div>
+
             <div className="flex items-center gap-3">
               <button onClick={save} className="bg-amber-500 text-stone-900 font-semibold px-4 py-2 rounded-lg text-sm">Save course</button>
               {msg && <span className="text-stone-400 text-sm">{msg}</span>}
@@ -171,12 +179,22 @@ function QuestionsEditor({ levelId }) {
 
 function QuestionRow({ q, onSaved, onDelete }) {
   const [prompt, setPrompt] = useState(q.prompt)
+  const [promptFa, setPromptFa] = useState(q.prompt_fa || '')
   const [options, setOptions] = useState(Array.isArray(q.options) ? q.options : ['', '', '', ''])
+  const [optionsFa, setOptionsFa] = useState(
+    Array.isArray(q.options_fa) && q.options_fa.length ? q.options_fa : ['', '', '', '']
+  )
   const [correct, setCorrect] = useState(q.correct_index ?? 0)
   const [saved, setSaved] = useState(false)
 
   async function save() {
-    await upsertQuestion({ id: q.id, level_id: q.level_id, prompt, options, correct_index: Number(correct), sort_order: q.sort_order })
+    const ofa = optionsFa.some((s) => s && s.trim()) ? optionsFa : null
+    await upsertQuestion({
+      id: q.id, level_id: q.level_id,
+      prompt, prompt_fa: promptFa || null,
+      options, options_fa: ofa,
+      correct_index: Number(correct), sort_order: q.sort_order,
+    })
     setSaved(true)
     setTimeout(() => setSaved(false), 1200)
     onSaved()
@@ -184,13 +202,19 @@ function QuestionRow({ q, onSaved, onDelete }) {
 
   return (
     <div className="bg-stone-900 border border-stone-800 rounded-xl p-3">
-      <input className={INPUT + ' mb-2'} value={prompt} onChange={(e) => setPrompt(e.target.value)} />
+      <input className={INPUT + ' mb-2'} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Question (English)" />
       {options.map((opt, i) => (
         <div key={i} className="flex items-center gap-2 mb-1.5">
           <input type="radio" name={`correct-${q.id}`} checked={Number(correct) === i} onChange={() => setCorrect(i)} title="Mark correct" />
           <input className={INPUT} value={opt} placeholder={`Option ${i + 1}`} onChange={(e) => { const n = [...options]; n[i] = e.target.value; setOptions(n) }} />
         </div>
       ))}
+      <div className="border-t border-stone-800 mt-2 pt-2 space-y-1.5">
+        <input dir="rtl" className={INPUT} value={promptFa} onChange={(e) => setPromptFa(e.target.value)} placeholder="پرسش (فارسی)" />
+        {optionsFa.map((opt, i) => (
+          <input key={i} dir="rtl" className={INPUT} value={opt} placeholder={`گزینه ${i + 1}`} onChange={(e) => { const n = [...optionsFa]; n[i] = e.target.value; setOptionsFa(n) }} />
+        ))}
+      </div>
       <div className="flex items-center gap-3 mt-2">
         <button onClick={save} className="text-sm bg-stone-700 hover:bg-stone-600 px-3 py-1 rounded">Save</button>
         <button onClick={onDelete} className="text-xs text-stone-500 hover:text-red-400">Delete</button>
