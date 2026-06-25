@@ -1,21 +1,30 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { marked } from 'marked'
 import { supabase } from '../lib/supabaseClient'
 import { awardXp } from '../lib/xp'
-import { useT, useLang } from '../lib/i18n'
-import { localized } from '../lib/localized'
+import { useLang } from '../lib/i18n'
+import { videoEmbed, audioEmbed } from '../lib/media'
 
-// Three sequential activities per course. Order is fixed and you cannot skip.
-const STEPS = ['reading', 'thinking', 'quiz']
+const GRADED = new Set(['quiz', 'fill_blank', 'true_false', 'match'])
+const norm = (s) => String(s ?? '').trim().toLowerCase()
 
 export default function CoursePage() {
   return (
-    <Suspense fallback={<CenterMessage>Loading course…</CenterMessage>}>
+    <Suspense fallback={<CenterMessage>…</CenterMessage>}>
       <CoursePlayer />
     </Suspense>
   )
+}
+
+// Per-field localization for a block (Persian with English fallback).
+function bf(block, field, locale) {
+  if (locale === 'fa' && block.content_fa && block.content_fa[field] != null && block.content_fa[field] !== '') {
+    return block.content_fa[field]
+  }
+  return block.content?.[field]
 }
 
 function CoursePlayer() {
@@ -25,42 +34,27 @@ function CoursePlayer() {
   const levelId = params.get('id') != null ? Number(params.get('id')) : null
 
   const [level, setLevel] = useState(null)
+  const [blocks, setBlocks] = useState([])
   const [wasCompleted, setWasCompleted] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const [stepIndex, setStepIndex] = useState(0)
-  const [reflection, setReflection] = useState('')
-  const [answers, setAnswers] = useState({}) // questionId -> selected option index
+  const [stepState, setStepState] = useState({}) // index -> { value, hasAnswer, checked, correct }
   const [submitting, setSubmitting] = useState(false)
-  const [finished, setFinished] = useState(null) // { xpGained, score, total, evolvedTo }
+  const [finished, setFinished] = useState(null)
 
   async function load() {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      router.replace('/signup')
-      return
-    }
+    if (!user) { router.replace('/signup'); return }
 
-    const [{ data: levelData }, { data: existing }] = await Promise.all([
-      supabase
-        .from('levels')
-        .select('*, questions(*)')
-        .order('sort_order', { referencedTable: 'questions', ascending: true })
-        .eq('level_id', levelId)
-        .single(),
-      supabase
-        .from('user_progress')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('level_id', levelId)
-        .maybeSingle(),
+    const [{ data: levelData }, { data: blockData }, { data: existing }] = await Promise.all([
+      supabase.from('levels').select('*').eq('level_id', levelId).single(),
+      supabase.from('course_blocks').select('*').eq('level_id', levelId).order('sort_order', { ascending: true }),
+      supabase.from('user_progress').select('status').eq('user_id', user.id).eq('level_id', levelId).maybeSingle(),
     ])
-
     setLevel(levelData)
-    if (existing?.status === 'completed') {
-      setWasCompleted(true)
-      setReflection(existing.submission_content || '')
-    }
+    setBlocks(blockData || [])
+    if (existing?.status === 'completed') setWasCompleted(true)
     setLoading(false)
   }
 
@@ -74,111 +68,111 @@ function CoursePlayer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [levelId])
 
-  if (loading) return <CenterMessage>{t('course.loading')}</CenterMessage>
+  const setS = (idx, patch) => setStepState((s) => ({ ...s, [idx]: { ...s[idx], ...patch } }))
 
+  const titleLoc = useMemo(
+    () => (level ? (locale === 'fa' ? level.title_fa || level.title : level.title) : ''),
+    [level, locale]
+  )
+
+  if (loading) return <CenterMessage>{t('course.loading')}</CenterMessage>
   if (!level) {
     return (
       <CenterMessage>
         {t('course.notFound')}
-        <button onClick={() => router.push('/learn')} className="mt-4 text-amber-400 underline">
-          {t('course.back')}
-        </button>
+        <button onClick={() => router.push('/learn')} className="mt-4 text-amber-400 underline">{t('course.back')}</button>
+      </CenterMessage>
+    )
+  }
+  if (blocks.length === 0) {
+    return (
+      <CenterMessage>
+        {t('course.noParts')}
+        <button onClick={() => router.push('/learn')} className="mt-4 text-amber-400 underline">{t('course.back')}</button>
       </CenterMessage>
     )
   }
 
-  const questions = level.questions ?? []
-  const step = STEPS[stepIndex]
+  const block = blocks[stepIndex]
+  const st = stepState[stepIndex] || {}
+  const isGraded = GRADED.has(block.type)
+  const isLast = stepIndex === blocks.length - 1
 
-  // Localized copies for DISPLAY only (logic below still uses raw fields/ids).
-  const L = {
-    ...level,
-    title: localized(level, 'title', locale),
-    content_body: localized(level, 'content_body', locale),
-    reading_text: localized(level, 'reading_text', locale),
-    critical_thinking_prompt: localized(level, 'critical_thinking_prompt', locale),
-  }
-  const displayQuestions = questions.map((q) => ({
-    ...q,
-    prompt: localized(q, 'prompt', locale),
-    options:
-      locale === 'fa' && Array.isArray(q.options_fa) && q.options_fa.length
-        ? q.options_fa
-        : q.options,
-  }))
-
-  function next() {
-    if (stepIndex < STEPS.length - 1) setStepIndex(stepIndex + 1)
+  // Footer button state
+  let canPrimary = true
+  let primaryMode = 'continue' // 'continue' | 'check'
+  if (block.type === 'writing') canPrimary = !!norm(st.value)
+  else if (block.type === 'match') canPrimary = !!st.checked // auto-grades when all matched
+  else if (isGraded) {
+    if (!st.checked) { primaryMode = 'check'; canPrimary = !!st.hasAnswer }
   }
 
-  async function finish() {
+  function grade() {
+    let correct = false
+    if (block.type === 'quiz') correct = st.value === bf(block, 'correct_index', locale)
+    else if (block.type === 'true_false') correct = st.value === !!bf(block, 'answer', locale)
+    else if (block.type === 'fill_blank') {
+      const accepted = String(bf(block, 'answer', locale) ?? '').split('|').map(norm)
+      correct = accepted.includes(norm(st.value))
+    }
+    setS(stepIndex, { checked: true, correct })
+  }
+
+  async function advance() {
+    if (!isLast) { setStepIndex(stepIndex + 1); return }
+    // finish
     if (submitting) return
     setSubmitting(true)
 
-    const score = questions.reduce(
-      (s, q) => s + (answers[q.id] === q.correct_index ? 1 : 0),
-      0
-    )
+    const gradedSteps = blocks.map((b, i) => ({ b, s: stepState[i] || {} })).filter((x) => GRADED.has(x.b.type))
+    const total = gradedSteps.length
+    const score = gradedSteps.filter((x) => x.s.correct).length
+    const writing = blocks
+      .map((b, i) => (b.type === 'writing' ? (stepState[i]?.value || '') : ''))
+      .filter(Boolean)
+      .join('\n\n')
 
-    // Already completed before? Show the result but don't award XP again.
+    const { data: { user } } = await supabase.auth.getUser()
     if (wasCompleted) {
-      setFinished({ xpGained: 0, score, total: questions.length, evolvedTo: null })
+      setFinished({ xpGained: 0, score, total, evolvedTo: null })
       setSubmitting(false)
       return
     }
-
-    const { data: { user } } = await supabase.auth.getUser()
-
-    // 1) Mark this course complete (insert or update).
     await supabase.from('user_progress').upsert(
       {
-        user_id: user.id,
-        level_id: level.level_id,
-        status: 'completed',
-        submission_content: reflection,
-        quiz_score: score,
-        quiz_total: questions.length,
+        user_id: user.id, level_id: level.level_id, status: 'completed',
+        submission_content: writing, quiz_score: score, quiz_total: total,
         completed_at: new Date().toISOString(),
       },
       { onConflict: 'user_id,level_id' }
     )
-
-    // 2) Award XP through the ledger (also advances current_level + archetype).
     const { evolvedTo } = await awardXp({
-      userId: user.id,
-      source: 'course',
-      sourceRef: level.level_id,
-      amount: level.xp_reward,
+      userId: user.id, source: 'course', sourceRef: level.level_id, amount: level.xp_reward,
       profilePatch: { current_level: level.level_number + 1 },
     })
-
-    setFinished({ xpGained: level.xp_reward, score, total: questions.length, evolvedTo })
+    setFinished({ xpGained: level.xp_reward, score, total, evolvedTo })
     setSubmitting(false)
   }
 
-  if (finished) {
-    return <CompletionScreen level={L} result={finished} onDone={() => router.push('/learn')} />
+  function onPrimary() {
+    if (primaryMode === 'check') grade()
+    else advance()
   }
 
-  const allAnswered = questions.length > 0 && questions.every((q) => answers[q.id] != null)
+  if (finished) {
+    return <CompletionScreen title={titleLoc} result={finished} onDone={() => router.push('/learn')} t={t} />
+  }
 
   return (
     <div className="min-h-screen flex flex-col text-white">
-      {/* Top bar: close + segmented progress */}
       <header className="pt-safe sticky top-0 bg-stone-950/95 backdrop-blur z-10">
         <div className="max-w-xl mx-auto px-4 py-4 flex items-center gap-3">
-          <button
-            onClick={() => router.push('/learn')}
-            aria-label="Exit course"
-            className="text-stone-500 hover:text-stone-300 transition shrink-0"
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-              <path d="M18 6 6 18M6 6l12 12" />
-            </svg>
+          <button onClick={() => router.push('/learn')} aria-label="Exit" className="text-stone-500 hover:text-stone-300 transition shrink-0">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
           </button>
           <div className="flex-1 flex gap-1.5">
-            {STEPS.map((s, i) => (
-              <div key={s} className="flex-1 h-2.5 rounded-full bg-stone-800 overflow-hidden">
+            {blocks.map((b, i) => (
+              <div key={b.id} className="flex-1 h-2.5 rounded-full bg-stone-800 overflow-hidden">
                 <div className={`h-full bg-amber-500 transition-all ${i <= stepIndex ? 'w-full' : 'w-0'}`} />
               </div>
             ))}
@@ -187,166 +181,267 @@ function CoursePlayer() {
       </header>
 
       <main className="flex-1 max-w-xl w-full mx-auto px-4 py-6">
-        {step === 'reading' && <ReadingStep key="r" level={L} onContinue={next} />}
-        {step === 'thinking' && (
-          <ThinkingStep key="t" level={L} value={reflection} onChange={setReflection} onContinue={next} />
-        )}
-        {step === 'quiz' && (
-          <QuizStep
-            key="q"
-            questions={displayQuestions}
-            answers={answers}
-            onAnswer={(qid, idx) => setAnswers((a) => (a[qid] != null ? a : { ...a, [qid]: idx }))}
-            allAnswered={allAnswered}
-            submitting={submitting}
-            onFinish={finish}
-          />
-        )}
+        <div key={block.id} className="animate-pop">
+          <BlockView block={block} locale={locale} t={t} state={st} setState={(p) => setS(stepIndex, p)} />
+        </div>
       </main>
+
+      <footer className="sticky bottom-0 bg-stone-950/95 backdrop-blur pb-safe">
+        <div className="max-w-xl mx-auto px-4 py-4">
+          {isGraded && st.checked && (
+            <p className={`text-sm mb-2 font-medium ${st.correct ? 'text-green-400' : 'text-red-400'}`}>
+              {st.correct ? t('course.correct') : t('course.incorrect')}
+            </p>
+          )}
+          <PrimaryButton onClick={onPrimary} disabled={!canPrimary || submitting}>
+            {submitting ? t('course.saving')
+              : primaryMode === 'check' ? t('course.check')
+              : isLast ? t('course.finish') : t('course.continue')}
+          </PrimaryButton>
+        </div>
+      </footer>
     </div>
   )
 }
 
-function ActivityLabel({ icon, children }) {
+// ---- Block renderer ----
+function BlockView({ block, locale, t, state, setState }) {
+  switch (block.type) {
+    case 'reading':
+      return <ReadingBlock html={marked.parse(bf(block, 'body', locale) || '')} />
+    case 'image':
+      return <ImageBlock url={bf(block, 'url', locale)} caption={bf(block, 'caption', locale)} />
+    case 'video':
+      return <MediaBlock embed={videoEmbed(bf(block, 'url', locale))} caption={bf(block, 'caption', locale)} label={t('course.watch')} />
+    case 'audio':
+      return <MediaBlock embed={audioEmbed(bf(block, 'url', locale))} caption={bf(block, 'caption', locale)} label={t('course.listen')} />
+    case 'writing':
+      return <WritingBlock prompt={bf(block, 'prompt', locale)} value={state.value || ''} onChange={(v) => setState({ value: v })} t={t} />
+    case 'quiz':
+      return <QuizBlock block={block} locale={locale} state={state} setState={setState} />
+    case 'true_false':
+      return <TrueFalseBlock block={block} locale={locale} state={state} setState={setState} t={t} />
+    case 'fill_blank':
+      return <FillBlankBlock block={block} locale={locale} state={state} setState={setState} t={t} />
+    case 'match':
+      return <MatchBlock block={block} locale={locale} state={state} setState={setState} t={t} />
+    default:
+      return <p className="text-stone-500">Unsupported part.</p>
+  }
+}
+
+function ReadingBlock({ html }) {
+  return <article className="prose-kw" dangerouslySetInnerHTML={{ __html: html }} />
+}
+
+function ImageBlock({ url, caption }) {
   return (
-    <p className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-amber-500 mb-3">
-      <span aria-hidden="true">{icon}</span>
-      {children}
-    </p>
+    <figure className="text-center">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={url} alt={caption || ''} className="w-full rounded-2xl border border-stone-800" />
+      {caption && <figcaption className="text-stone-400 text-sm mt-3">{caption}</figcaption>}
+    </figure>
   )
 }
 
-function ReadingStep({ level, onContinue }) {
-  const t = useT()
+function MediaBlock({ embed, caption, label }) {
+  if (!embed) return <p className="text-stone-500">{label}</p>
   return (
-    <div className="animate-pop">
-      <ActivityLabel icon="📖">{t('course.reading')}</ActivityLabel>
-      <h1 className="font-display text-3xl text-white mb-2">{level.title}</h1>
-      {level.content_body && <p className="text-stone-400 mb-6">{level.content_body}</p>}
-      <article className="space-y-4 text-stone-200 leading-relaxed text-[17px]">
-        {(level.reading_text || '').split('\n\n').map((para, i) => (
-          <p key={i}>{para}</p>
-        ))}
-      </article>
-      <PrimaryButton onClick={onContinue} className="mt-8">{t('course.continue')}</PrimaryButton>
+    <div>
+      <p className="text-xs uppercase tracking-[0.18em] text-amber-500 mb-3">{label}</p>
+      {embed.kind === 'iframe' && (
+        <div className="relative w-full rounded-2xl overflow-hidden border border-stone-800" style={{ aspectRatio: '16 / 9' }}>
+          <iframe src={embed.src} className="absolute inset-0 w-full h-full" allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen title={caption || label} />
+        </div>
+      )}
+      {embed.kind === 'video' && <video src={embed.src} controls className="w-full rounded-2xl border border-stone-800" />}
+      {embed.kind === 'audio' && <audio src={embed.src} controls className="w-full" />}
+      {caption && <p className="text-stone-400 text-sm mt-3">{caption}</p>}
     </div>
   )
 }
 
-function ThinkingStep({ level, value, onChange, onContinue }) {
-  const t = useT()
+function WritingBlock({ prompt, value, onChange, t }) {
   return (
-    <div className="animate-pop">
-      <ActivityLabel icon="🧠">{t('course.thinking')}</ActivityLabel>
-      <h2 className="text-xl font-semibold text-white mb-4 leading-snug">
-        {level.critical_thinking_prompt}
-      </h2>
+    <div>
+      <p className="text-xs uppercase tracking-[0.18em] text-amber-500 mb-3">✍️ {t('course.thinking')}</p>
+      <h2 className="text-xl font-semibold text-white mb-4 leading-snug">{prompt}</h2>
       <textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        rows={8}
+        value={value} onChange={(e) => onChange(e.target.value)} rows={7}
         placeholder={t('course.thinkingPlaceholder')}
         className="w-full px-4 py-3 rounded-xl bg-stone-900 text-white placeholder-stone-600 border border-stone-700 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
       />
-      <p className="text-stone-600 text-xs mt-2">
-        {t('course.thinkingHint')}
-      </p>
-      <PrimaryButton onClick={onContinue} disabled={!value.trim()} className="mt-6">
-        {t('course.continue')}
-      </PrimaryButton>
+      <p className="text-stone-600 text-xs mt-2">{t('course.thinkingHint')}</p>
     </div>
   )
 }
 
-function QuizStep({ questions, answers, onAnswer, allAnswered, submitting, onFinish }) {
-  const t = useT()
-  if (questions.length === 0) {
-    return (
-      <div className="animate-pop">
-        <ActivityLabel icon="✅">{t('course.quiz')}</ActivityLabel>
-        <p className="text-stone-400 mb-6">{t('course.noQuiz')}</p>
-        <PrimaryButton onClick={onFinish} disabled={submitting}>{t('course.finish')}</PrimaryButton>
-      </div>
-    )
-  }
+function Choice({ children, onClick, disabled, tone }) {
+  const cls =
+    tone === 'correct' ? 'border-green-500 bg-green-500/15 text-green-300'
+      : tone === 'wrong' ? 'border-red-500 bg-red-500/15 text-red-300'
+      : tone === 'selected' ? 'border-amber-500 bg-amber-500/15 text-white'
+      : 'border-stone-700 bg-stone-900 text-stone-200 hover:border-stone-500'
   return (
-    <div className="animate-pop">
-      <ActivityLabel icon="✅">{t('course.quiz')}</ActivityLabel>
-      <h2 className="text-xl font-semibold text-white mb-6">{t('course.quizTitle')}</h2>
-      <div className="space-y-6">
-        {questions.map((q, qi) => {
-          const selected = answers[q.id]
-          const answered = selected != null
+    <button onClick={onClick} disabled={disabled} className={`w-full text-start px-4 py-3 rounded-xl border transition ${cls} ${disabled ? 'cursor-default' : 'cursor-pointer'}`}>
+      {children}
+    </button>
+  )
+}
+
+function QuizBlock({ block, locale, state, setState }) {
+  const prompt = bf(block, 'prompt', locale)
+  const options = bf(block, 'options', locale) || []
+  const correct = bf(block, 'correct_index', locale)
+  return (
+    <div>
+      <p className="text-xs uppercase tracking-[0.18em] text-amber-500 mb-3">✅ {bfLabel(block)}</p>
+      <h2 className="text-xl font-semibold text-white mb-5">{prompt}</h2>
+      <div className="space-y-2">
+        {options.map((opt, i) => {
+          let tone = state.value === i ? 'selected' : null
+          if (state.checked) tone = i === correct ? 'correct' : state.value === i ? 'wrong' : null
           return (
-            <div key={q.id}>
-              <p className="text-stone-200 font-medium mb-3">
-                <span className="text-stone-500">{qi + 1}.</span> {q.prompt}
-              </p>
-              <div className="space-y-2">
-                {q.options.map((opt, oi) => {
-                  const isSelected = selected === oi
-                  const isCorrect = oi === q.correct_index
-                  let cls = 'border-stone-700 bg-stone-900 text-stone-200 hover:border-stone-500'
-                  if (answered) {
-                    if (isCorrect) cls = 'border-green-500 bg-green-500/15 text-green-300'
-                    else if (isSelected) cls = 'border-red-500 bg-red-500/15 text-red-300'
-                    else cls = 'border-stone-800 bg-stone-900 text-stone-500'
-                  }
-                  return (
-                    <button
-                      key={oi}
-                      onClick={() => onAnswer(q.id, oi)}
-                      disabled={answered}
-                      className={`w-full text-left px-4 py-3 rounded-xl border transition ${cls} ${
-                        answered ? 'cursor-default' : 'cursor-pointer'
-                      }`}
-                    >
-                      {opt}
-                      {answered && isCorrect && <span className="float-right">✓</span>}
-                      {answered && isSelected && !isCorrect && <span className="float-right">✗</span>}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
+            <Choice key={i} disabled={state.checked} tone={tone} onClick={() => setState({ value: i, hasAnswer: true })}>
+              {opt}
+            </Choice>
           )
         })}
       </div>
-      <PrimaryButton onClick={onFinish} disabled={!allAnswered || submitting} className="mt-8">
-        {submitting ? t('course.saving') : t('course.finish')}
-      </PrimaryButton>
     </div>
   )
 }
 
-function CompletionScreen({ level, result, onDone }) {
-  const t = useT()
-  const { xpGained, score, total, evolvedTo } = result
-  const archName = (a) => {
-    const k = t('arch.' + a)
-    return k === 'arch.' + a ? a : k
+function TrueFalseBlock({ block, locale, state, setState, t }) {
+  const statement = bf(block, 'statement', locale)
+  const answer = !!bf(block, 'answer', locale)
+  const opts = [{ v: true, label: t('course.true') }, { v: false, label: t('course.false') }]
+  return (
+    <div>
+      <p className="text-xs uppercase tracking-[0.18em] text-amber-500 mb-3">⚖️ {t('course.trueFalse')}</p>
+      <h2 className="text-xl font-semibold text-white mb-5">{statement}</h2>
+      <div className="grid grid-cols-2 gap-3">
+        {opts.map((o) => {
+          let tone = state.value === o.v ? 'selected' : null
+          if (state.checked) tone = o.v === answer ? 'correct' : state.value === o.v ? 'wrong' : null
+          return (
+            <Choice key={String(o.v)} disabled={state.checked} tone={tone} onClick={() => setState({ value: o.v, hasAnswer: true })}>
+              <span className="block text-center font-medium">{o.label}</span>
+            </Choice>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function FillBlankBlock({ block, locale, state, setState, t }) {
+  const sentence = bf(block, 'sentence', locale) || ''
+  const [before, after] = sentence.split('___')
+  const answer = bf(block, 'answer', locale)
+  const isCorrect = state.checked && state.correct
+  return (
+    <div>
+      <p className="text-xs uppercase tracking-[0.18em] text-amber-500 mb-3">✏️ {t('course.fillBlank')}</p>
+      <p className="text-lg text-stone-200 leading-relaxed mb-5">
+        {before}
+        <input
+          value={state.value || ''} disabled={state.checked}
+          onChange={(e) => setState({ value: e.target.value, hasAnswer: !!e.target.value.trim() })}
+          className={`mx-1 px-2 py-1 rounded-lg bg-stone-900 border text-white w-40 focus:outline-none focus:ring-2 focus:ring-amber-500 ${
+            state.checked ? (isCorrect ? 'border-green-500' : 'border-red-500') : 'border-stone-600'
+          }`}
+        />
+        {after}
+      </p>
+      {state.checked && !isCorrect && (
+        <p className="text-stone-400 text-sm">{t('course.answerWas')} <span className="text-green-400">{String(answer).split('|')[0]}</span></p>
+      )}
+    </div>
+  )
+}
+
+function strHash(s) {
+  let h = 0
+  const str = String(s ?? '')
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0
+  return h
+}
+
+function MatchBlock({ block, locale, state, setState, t }) {
+  const pairs = bf(block, 'pairs', locale) || []
+  // Deterministic re-order of the right column (pure — no Math.random in render).
+  const rights = useMemo(
+    () => pairs.map((p, i) => ({ i, right: p.right })).sort((a, b) => strHash(a.right) - strHash(b.right)),
+    [block.id, locale] // eslint-disable-line react-hooks/exhaustive-deps
+  )
+  const matched = state.matched || {} // leftIndex -> true
+  const selLeft = state.selLeft ?? null
+
+  function tapLeft(i) {
+    if (matched[i]) return
+    setState({ selLeft: i })
   }
+  function tapRight(ri) {
+    if (selLeft == null) return
+    if (ri === selLeft) {
+      const nm = { ...matched, [selLeft]: true }
+      const done = Object.keys(nm).length === pairs.length
+      setState({ matched: nm, selLeft: null, hasAnswer: done, checked: done, correct: done })
+    } else {
+      setState({ selLeft: null }) // wrong, deselect
+    }
+  }
+
+  return (
+    <div>
+      <p className="text-xs uppercase tracking-[0.18em] text-amber-500 mb-3">🔗 {t('course.match')}</p>
+      <h2 className="text-base text-stone-300 mb-4">{t('course.matchHint')}</h2>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          {pairs.map((p, i) => (
+            <Choice key={i} disabled={matched[i]} tone={matched[i] ? 'correct' : selLeft === i ? 'selected' : null} onClick={() => tapLeft(i)}>
+              {p.left}
+            </Choice>
+          ))}
+        </div>
+        <div className="space-y-2">
+          {rights.map((r) => (
+            <Choice key={r.i} disabled={matched[r.i]} tone={matched[r.i] ? 'correct' : null} onClick={() => tapRight(r.i)}>
+              {r.right}
+            </Choice>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function bfLabel(block) {
+  return block.type === 'quiz' ? 'Quiz' : block.type
+}
+
+function CompletionScreen({ title, result, onDone, t }) {
+  const { xpGained, score, total, evolvedTo } = result
   return (
     <div className="min-h-screen flex items-center justify-center px-4 text-center">
       <div className="animate-pop max-w-sm">
         {evolvedTo ? (
           <>
             <p className="text-stone-400 mb-1">{t('course.evolved')}</p>
-            <h1 className="font-display text-5xl text-amber-400 mb-6">{archName(evolvedTo)}</h1>
+            <h1 className="font-display text-5xl text-amber-400 mb-6">{evolvedTo}</h1>
           </>
         ) : (
           <>
             <div className="text-6xl mb-4">👑</div>
             <h1 className="font-display text-3xl text-amber-400 mb-2">{t('course.complete')}</h1>
-            <p className="text-stone-400 mb-6">{level.title}</p>
+            <p className="text-stone-400 mb-6">{title}</p>
           </>
         )}
-
         <div className="flex gap-3 justify-center mb-8">
           <Pill label={t('course.xpEarned')} value={`+${xpGained}`} />
           {total > 0 && <Pill label={t('course.quiz')} value={`${score}/${total}`} />}
         </div>
-
         <PrimaryButton onClick={onDone}>{t('course.continuePath')}</PrimaryButton>
       </div>
     </div>
@@ -364,19 +459,12 @@ function Pill({ label, value }) {
 
 function PrimaryButton({ children, className = '', ...props }) {
   return (
-    <button
-      {...props}
-      className={`w-full bg-amber-500 hover:bg-amber-400 text-stone-900 font-bold py-3.5 rounded-xl transition disabled:opacity-40 disabled:cursor-not-allowed ${className}`}
-    >
+    <button {...props} className={`w-full bg-amber-500 hover:bg-amber-400 text-stone-900 font-bold py-3.5 rounded-xl transition disabled:opacity-40 disabled:cursor-not-allowed ${className}`}>
       {children}
     </button>
   )
 }
 
 function CenterMessage({ children }) {
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center text-stone-400 px-4 text-center">
-      {children}
-    </div>
-  )
+  return <div className="min-h-screen flex flex-col items-center justify-center text-stone-400 px-4 text-center">{children}</div>
 }

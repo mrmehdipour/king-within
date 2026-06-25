@@ -39,6 +39,12 @@ export const listQuestions = (levelId) =>
 export const upsertQuestion = (row) => supabase.from('questions').upsert(row).select().single()
 export const deleteQuestion = (id) => supabase.from('questions').delete().eq('id', id)
 
+// --- Course blocks (flexible parts) ----------------------------------------
+export const listBlocks = (levelId) =>
+  supabase.from('course_blocks').select('*').eq('level_id', levelId).order('sort_order')
+export const upsertBlock = (row) => supabase.from('course_blocks').upsert(row).select().single()
+export const deleteBlock = (id) => supabase.from('course_blocks').delete().eq('id', id)
+
 // --- Blog (tracks + posts) -------------------------------------------------
 export const listTracks = () => supabase.from('blog_tracks').select('*').order('sort_order')
 export const upsertTrack = (row) => supabase.from('blog_tracks').upsert(row).select().single()
