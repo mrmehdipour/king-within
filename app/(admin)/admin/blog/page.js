@@ -97,7 +97,7 @@ function Posts() {
   }, [])
 
   function blank() {
-    return { title: '', slug: '', track_id: null, order_in_track: 1, excerpt: '', category: '', reading_minutes: 3, body: '', published: false }
+    return { title: '', slug: '', track_id: null, order_in_track: 1, excerpt: '', category: '', reading_minutes: 3, body: '', published: true }
   }
   async function save() {
     const row = { ...editing, slug: editing.slug || slugify(editing.title || '') }

@@ -2,6 +2,11 @@ import Link from 'next/link'
 import { supabasePublic } from '../lib/supabasePublic'
 import { Bi, T2 } from '../components/Bi'
 import LanguageToggle from '../components/LanguageToggle'
+import TrackRoadmap from '../components/TrackRoadmap'
+
+// Re-generate at most once a minute so new categories/posts from the CMS appear
+// automatically (no redeploy needed).
+export const revalidate = 60
 
 export const metadata = {
   title: 'The Journal — King Within',
@@ -70,22 +75,7 @@ export default async function BlogIndex() {
             <section key={track.id} className="mb-12">
               <h2 className="font-display text-2xl text-amber-400 mb-1"><Bi en={track.title} fa={track.title_fa} /></h2>
               {track.description && <p className="text-stone-400 text-sm mb-5"><Bi en={track.description} fa={track.description_fa} /></p>}
-              <ol className="relative border-s border-dashed border-stone-700 ms-4">
-                {items.map((p, i) => (
-                  <li key={p.id} className="relative ps-8 pb-6 last:pb-0">
-                    <span className="absolute -start-[13px] top-0 w-6 h-6 rounded-full bg-amber-500 text-stone-900 text-xs font-bold flex items-center justify-center">
-                      {i + 1}
-                    </span>
-                    <Link href={`/blog/${p.slug}`} className="block group">
-                      <h3 className="text-white font-medium group-hover:text-amber-400 transition leading-snug">
-                        <Bi en={p.title} fa={p.title_fa} />
-                      </h3>
-                      <p className="text-stone-500 text-sm"><Bi en={p.excerpt} fa={p.excerpt_fa} /></p>
-                      <span className="text-stone-600 text-xs">{p.reading_minutes} <T2 k="common.minRead" /></span>
-                    </Link>
-                  </li>
-                ))}
-              </ol>
+              <TrackRoadmap posts={items} />
             </section>
           )
         })}

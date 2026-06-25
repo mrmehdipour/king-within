@@ -4,9 +4,11 @@ import { marked } from 'marked'
 import { supabasePublic } from '../../lib/supabasePublic'
 import { Bi, T2 } from '../../components/Bi'
 import LanguageToggle from '../../components/LanguageToggle'
+import TrackRoadmap from '../../components/TrackRoadmap'
 
-// Only prebuilt slugs exist; unknown ones 404 (required for static export).
-export const dynamicParams = false
+// Known posts pre-render at build; new ones render on demand and are cached
+// (so a freshly added article is viewable without a redeploy on the web).
+export const revalidate = 60
 
 export async function generateStaticParams() {
   const { data } = await supabasePublic.from('blog_posts').select('slug').eq('published', true)
@@ -41,18 +43,15 @@ export default async function BlogPost({ params }) {
 
   if (!post) notFound()
 
-  let prev = null
-  let next = null
+  let siblings = []
   if (post.track_id) {
-    const { data: siblings } = await supabasePublic
+    const { data } = await supabasePublic
       .from('blog_posts')
       .select('slug, title, title_fa, order_in_track')
       .eq('track_id', post.track_id)
       .eq('published', true)
       .order('order_in_track')
-    const idx = (siblings || []).findIndex((s) => s.slug === slug)
-    prev = idx > 0 ? siblings[idx - 1] : null
-    next = idx >= 0 && idx < (siblings?.length ?? 0) - 1 ? siblings[idx + 1] : null
+    siblings = data || []
   }
 
   const htmlEn = marked.parse(post.body || '')
@@ -91,18 +90,12 @@ export default async function BlogPost({ params }) {
         <div className="prose-kw lang-en" dangerouslySetInnerHTML={{ __html: htmlEn }} />
         <div className="prose-kw lang-fa" dangerouslySetInnerHTML={{ __html: htmlFa }} />
 
-        {(prev || next) && (
-          <div className="mt-12 pt-6 border-t border-stone-800 flex justify-between gap-4 text-sm">
-            {prev ? (
-              <Link href={`/blog/${prev.slug}`} className="text-stone-400 hover:text-amber-400 transition max-w-[45%]">
-                <span className="rtl-flip inline-block">←</span> <Bi en={prev.title} fa={prev.title_fa} />
-              </Link>
-            ) : <span />}
-            {next ? (
-              <Link href={`/blog/${next.slug}`} className="text-stone-400 hover:text-amber-400 transition text-end max-w-[45%] ms-auto">
-                <Bi en={next.title} fa={next.title_fa} /> <span className="rtl-flip inline-block">→</span>
-              </Link>
-            ) : <span />}
+        {siblings.length > 0 && (
+          <div className="mt-12 pt-6 border-t border-stone-800">
+            <h2 className="font-display text-lg text-amber-400 mb-4">
+              <Bi en={post.blog_tracks?.title} fa={post.blog_tracks?.title_fa} />
+            </h2>
+            <TrackRoadmap posts={siblings} currentSlug={slug} />
           </div>
         )}
 
