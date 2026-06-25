@@ -51,6 +51,13 @@ export default function AdminHome() {
           lines={[`${counts?.journal ?? '—'} questions`]}
           blurb="The daily-question pool that pulls users back each day."
         />
+        <MapCard
+          href="/admin/answers"
+          title="User answers"
+          icon="🧠"
+          lines={['Read-only']}
+          blurb="Every captured answer — quiz picks, writing, fill-blank — for future AI personality analysis."
+        />
       </div>
 
       <div className="mt-8 bg-stone-900 border border-stone-800 rounded-2xl p-5">

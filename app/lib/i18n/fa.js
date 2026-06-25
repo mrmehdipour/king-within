@@ -142,6 +142,21 @@ const fa = {
   'profile.notifications': 'اعلان‌ها',
   'profile.signOut': 'خروج',
 
+  // lion (AI agent)
+  'lion.title': 'شیر',
+  'lion.subtitle': 'راهنمای هوش مصنوعی تو',
+  'lion.analyzeCta': 'از شیر بخواه تو را بخواند',
+  'lion.regenerate': 'تحلیل تازه',
+  'lion.thinking': 'شیر در حال خواندن مسیر توست…',
+  'lion.empty': 'چند درس و یادداشت روزانه را کامل کن، سپس بگذار شیر دربارهٔ آن‌که داری می‌شوی بیندیشد.',
+  'lion.error': 'شیر اکنون نتوانست پاسخ دهد. لحظه‌ای دیگر دوباره تلاش کن.',
+  'lion.rateLimit': 'درخواست‌ها از شیر بیش از حد شده. چند ثانیه صبر کن و دوباره تلاش کن.',
+  'lion.generatedAt': 'خوانده‌شده در {date}',
+  'lion.testConnection': 'آزمایش اتصال',
+  'lion.testing': 'در حال آزمایش…',
+  'lion.live': 'شیر فعّال است',
+  'lion.notLive': 'در دسترس نیست — از استقرار تابع و تنظیم کلید مطمئن شو',
+
   // blog
   'blog.library': 'کتابخانه',
   'blog.heading': 'نقشه‌های مطالعه',

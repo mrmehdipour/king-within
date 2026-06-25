@@ -1,11 +1,14 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabaseClient'
 import { useAppData } from '../../lib/appData'
 import { getArchetypeProgress, ARCHETYPE_THRESHOLDS } from '../../lib/archetypes'
 import { useLang } from '../../lib/i18n'
 import LanguageToggle from '../../components/LanguageToggle'
+import LionAvatar from '../../components/LionAvatar'
+import { askLion, latestInsight, pingLion } from '../../lib/lion'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -54,6 +57,10 @@ export default function ProfilePage() {
         <StatTile label={t('stats.totalXp')} value={profile?.total_xp ?? 0} />
         <StatTile label={t('profile.completed')} value={completed} />
       </div>
+
+      {/* The Lion — AI agent */}
+      <SectionTitle>{t('lion.title')}</SectionTitle>
+      <LionCard t={t} locale={locale} isAdmin={profile?.is_admin} />
 
       {/* Archetype progression ladder */}
       <SectionTitle>{t('profile.archPath')}</SectionTitle>
@@ -107,6 +114,98 @@ export default function ProfilePage() {
         <SettingRow label={t('profile.editAccount')} onClick={() => {}} />
         <SettingRow label={t('profile.notifications')} onClick={() => {}} />
         <SettingRow label={t('profile.signOut')} danger onClick={handleSignOut} />
+      </div>
+    </div>
+  )
+}
+
+function LionCard({ t, locale, isAdmin }) {
+  const [insight, setInsight] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+  const [loaded, setLoaded] = useState(false)
+  const [conn, setConn] = useState(null) // null | 'testing' | 'live' | 'down'
+
+  async function loadLatest() {
+    const latest = await latestInsight('personality')
+    setInsight(latest)
+    setLoaded(true)
+  }
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadLatest()
+  }, [])
+
+  async function generate() {
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await askLion({ skill: 'personality', locale })
+      setInsight({ content: res.content, locale: res.locale, created_at: new Date().toISOString() })
+    } catch (e) {
+      setError(e.code === 'rate_limit' ? t('lion.rateLimit') : (e.message || t('lion.error')))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function testConnection() {
+    setConn('testing')
+    const ok = await pingLion()
+    setConn(ok ? 'live' : 'down')
+  }
+
+  const dateStr = insight?.created_at
+    ? new Date(insight.created_at).toLocaleDateString(locale === 'fa' ? 'fa-IR' : undefined, {
+        month: 'short', day: 'numeric', year: 'numeric',
+      })
+    : null
+
+  return (
+    <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 mb-6">
+      <div className="flex items-center gap-4">
+        <LionAvatar size={64} thinking={busy} />
+        <div className="min-w-0">
+          <p className="font-display text-lg text-amber-400">{t('lion.title')}</p>
+          <p className="text-stone-500 text-xs">{t('lion.subtitle')}</p>
+        </div>
+      </div>
+
+      <div className="mt-4">
+        {busy ? (
+          <p className="text-stone-400 text-sm">{t('lion.thinking')}</p>
+        ) : insight ? (
+          <>
+            <p className="text-stone-200 text-sm whitespace-pre-wrap leading-relaxed">{insight.content}</p>
+            {dateStr && <p className="text-stone-600 text-xs mt-3">{t('lion.generatedAt', { date: dateStr })}</p>}
+          </>
+        ) : (
+          <p className="text-stone-400 text-sm">{loaded ? t('lion.empty') : t('common.loading')}</p>
+        )}
+
+        {error && <p className="text-red-400 text-xs mt-3">{error}</p>}
+
+        <button
+          onClick={generate}
+          disabled={busy}
+          className="mt-4 w-full rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-stone-900 font-semibold text-sm py-3 transition"
+        >
+          {busy ? t('lion.thinking') : insight ? t('lion.regenerate') : t('lion.analyzeCta')}
+        </button>
+
+        {isAdmin && (
+          <div className="mt-3 flex items-center gap-2 text-xs">
+            <button
+              onClick={testConnection}
+              disabled={conn === 'testing'}
+              className="text-stone-400 hover:text-amber-400 underline disabled:opacity-50"
+            >
+              {conn === 'testing' ? t('lion.testing') : t('lion.testConnection')}
+            </button>
+            {conn === 'live' && <span className="text-green-400">✓ {t('lion.live')}</span>}
+            {conn === 'down' && <span className="text-red-400">✗ {t('lion.notLive')}</span>}
+          </div>
+        )}
       </div>
     </div>
   )

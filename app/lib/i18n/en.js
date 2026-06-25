@@ -142,6 +142,21 @@ const en = {
   'profile.notifications': 'Notifications',
   'profile.signOut': 'Sign out',
 
+  // lion (AI agent)
+  'lion.title': 'The Lion',
+  'lion.subtitle': 'Your AI guide',
+  'lion.analyzeCta': 'Ask the Lion to read you',
+  'lion.regenerate': 'Refresh insight',
+  'lion.thinking': 'The Lion is reading your journey…',
+  'lion.empty': 'Complete a few courses and journal entries, then let the Lion reflect on who you are becoming.',
+  'lion.error': 'The Lion could not respond right now. Try again in a moment.',
+  'lion.rateLimit': 'The Lion is being asked too much right now. Wait a few seconds and try again.',
+  'lion.generatedAt': 'Read on {date}',
+  'lion.testConnection': 'Test connection',
+  'lion.testing': 'Testing…',
+  'lion.live': 'Lion is live',
+  'lion.notLive': 'Not reachable — check the function is deployed and the key is set',
+
   // blog
   'blog.library': 'The Library',
   'blog.heading': 'Reading roadmaps',

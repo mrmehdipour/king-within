@@ -54,6 +54,17 @@ export const listPosts = () =>
 export const upsertPost = (row) => supabase.from('blog_posts').upsert(row).select().single()
 export const deletePost = (id) => supabase.from('blog_posts').delete().eq('id', id)
 
+// --- User answers (read-only, for AI analysis prep) ------------------------
+export const listAllAnswers = () =>
+  supabase.from('user_answers')
+    .select('user_id, id, type, answer, is_correct, created_at, levels(title, level_number)')
+    .order('created_at', { ascending: false })
+
+export const listProfilesForUsers = (userIds) =>
+  supabase.from('profiles')
+    .select('id, current_archetype, total_xp')
+    .in('id', userIds)
+
 // --- Journal questions ------------------------------------------------------
 export const listJournalQuestions = () =>
   supabase.from('journal_questions').select('*').order('id', { ascending: false })

@@ -148,3 +148,11 @@ html:not([lang="fa"]) .lang-fa {
 .animate-glow {
   animation: kw-glow 1.8s ease-in-out infinite;
 }
+
+@keyframes lion-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.06); opacity: 0.85; }
+}
+.lion-thinking {
+  animation: lion-pulse 1.4s ease-in-out infinite;
+}
