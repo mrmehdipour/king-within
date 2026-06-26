@@ -80,6 +80,16 @@ All TEXT VALUES must be written in ${locale === 'fa' ? 'Persian (فارسی)' : 
   },
 }
 
+// Chat (3rd skill) is multi-turn, so it isn't a one-shot SKILLS entry — it builds
+// a system prompt + a running message history. This is its instruction.
+const chatInstruction = (locale: string) =>
+  `You are now in a live CONVERSATION with this person — a back-and-forth coaching dialogue, not a one-off report.
+- Speak like a real mentor in chat: usually 1-4 sentences. Warm, direct, a little fierce. Never robotic.
+- When it helps them think, ask ONE sharp follow-up question. Don't interrogate.
+- Use what you know about them (below) to stay specific and personal — never generic horoscope-speak.
+- No long essays, no bullet-point dumps. This is a dialogue.
+- Reply ONLY in ${locale === 'fa' ? 'Persian (فارسی), Arabic script' : 'English'}. No other language.`
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 2 · CONTEXT builders — turn DB rows into LEAN, high-signal text for the prompt.
 //     We DON'T dump every answer. Writing/journal reflections are the gold;
@@ -328,6 +338,63 @@ async function callModelInLanguage(
   return retry.ok ? retry : first
 }
 
+// ── Multi-turn chat variants (3rd skill) ────────────────────────────────────
+type Turn = { role: 'user' | 'assistant'; content: string }
+
+async function callGroqChat(apiKey: string, system: string, turns: Turn[]): Promise<ModelResult> {
+  const model = Deno.env.get('GROQ_MODEL') ?? 'llama-3.3-70b-versatile'
+  const res = await withRetry(() =>
+    fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'system', content: system }, ...turns],
+        temperature: 0.6,
+        max_tokens: 500,
+      }),
+    }),
+  )
+  if (!res.ok) return { ok: false, status: res.status, detail: await res.text() }
+  const data = await res.json()
+  return { ok: true, status: 200, content: data?.choices?.[0]?.message?.content ?? '' }
+}
+
+async function callGeminiChat(apiKey: string, system: string, turns: Turn[]): Promise<ModelResult> {
+  const model = Deno.env.get('GEMINI_MODEL') ?? 'gemini-2.0-flash'
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`
+  const res = await withRetry(() =>
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: system }] },
+        contents: turns.map((t) => ({ role: t.role === 'assistant' ? 'model' : 'user', parts: [{ text: t.content }] })),
+        generationConfig: { temperature: 0.6, maxOutputTokens: 500 },
+      }),
+    }),
+  )
+  if (!res.ok) return { ok: false, status: res.status, detail: await res.text() }
+  const data = await res.json()
+  const content = data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') ?? ''
+  return { ok: true, status: 200, content }
+}
+
+async function callModelChat(system: string, turns: Turn[], locale: string): Promise<ModelResult & { provider: string }> {
+  const provider = activeProvider()
+  if (!provider) return { ok: false, status: 500, detail: 'No model key set.', provider: 'none' }
+  const run = (ts: Turn[]) =>
+    provider.name === 'groq' ? callGroqChat(provider.key, system, ts) : callGeminiChat(provider.key, system, ts)
+
+  const first = await run(turns)
+  if (first.ok && first.content && looksWrongLanguage(first.content, locale)) {
+    const nudge: Turn = { role: 'user', content: `(Reply only in ${locale === 'fa' ? 'Persian' : 'English'}.)` }
+    const retry = await run([...turns, nudge])
+    if (retry.ok && retry.content && !looksWrongLanguage(retry.content, locale)) return { ...retry, provider: provider.name }
+  }
+  return { ...first, provider: provider.name }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Handler — auth + router + model call + output.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -358,6 +425,43 @@ Deno.serve(async (req) => {
     // Lightweight health check — confirms the function is live and a key is set,
     // without spending any model quota.
     if (skillName === 'ping') return json({ ok: true, provider: provider.name })
+
+    // ── 3rd skill: multi-turn conversation ──────────────────────────────────
+    if (skillName === 'chat') {
+      const userMessage = String(body.message ?? '').trim()
+      if (!userMessage) return json({ error: 'Empty message.', code: 'empty' }, 400)
+
+      // Recent history (oldest→newest) so the Lion remembers the dialogue.
+      const { data: hist } = await supabase
+        .from('lion_messages')
+        .select('role, content')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(12)
+      const history: Turn[] = (hist ?? []).reverse().map((h: any) => ({ role: h.role, content: h.content }))
+
+      // Lean context so it stays specific (profile + recent journal + activity).
+      const ctx = await buildCoachContext(supabase, user.id)
+      const system = `${PERSONA}\n\n${chatInstruction(locale)}\n\n--- WHO YOU ARE TALKING TO ---\n${ctx}`
+      const turns: Turn[] = [...history, { role: 'user', content: userMessage }]
+
+      const result = await callModelChat(system, turns, locale)
+      if (!result.ok) {
+        console.error('Chat error', result.provider, result.status, result.detail)
+        if (result.status === 429) return json({ error: 'The Lion is being asked too much right now. Try again shortly.', code: 'rate_limit', detail: result.detail }, 429)
+        return json({ error: 'The Lion could not respond right now.', code: 'upstream', detail: result.detail }, 502)
+      }
+      const reply = (result.content ?? '').trim()
+      if (!reply) return json({ error: 'The Lion returned nothing. Try again.', code: 'empty' }, 502)
+
+      // Persist both turns (best-effort: chat still works before db/11 is run).
+      await supabase.from('lion_messages').insert([
+        { user_id: user.id, role: 'user', content: userMessage },
+        { user_id: user.id, role: 'assistant', content: reply },
+      ])
+
+      return json({ reply, provider: result.provider })
+    }
 
     const skill = SKILLS[skillName]
     if (!skill) return json({ error: `Unknown skill: ${skillName}`, code: 'bad_skill' }, 400)

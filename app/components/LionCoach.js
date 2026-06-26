@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { supabase } from '../lib/supabaseClient'
 import { useLang } from '../lib/i18n'
 import { useAppData } from '../lib/appData'
@@ -111,6 +112,7 @@ export default function LionCoach() {
           {busy ? t('lion.coachThinking') : t('lion.coachBegin')}
         </button>
         {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+        <ChatLink t={t} />
       </div>
     )
   }
@@ -162,8 +164,28 @@ export default function LionCoach() {
         )}
 
         {error && <p className="text-red-400 text-xs">{error}</p>}
+        <ChatLink t={t} />
       </div>
     </div>
+  )
+}
+
+function ChatLink({ t }) {
+  return (
+    <Link
+      href="/lion"
+      className="mt-1 flex items-center justify-center gap-1.5 text-amber-300 hover:text-amber-200 text-sm font-medium py-1 transition"
+    >
+      <ChatIcon /> {t('lion.chatTitle')}
+    </Link>
+  )
+}
+
+function ChatIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7a8.5 8.5 0 0 1-.9-3.8A8.38 8.38 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5z" />
+    </svg>
   )
 }
 

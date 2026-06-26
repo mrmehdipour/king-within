@@ -38,6 +38,39 @@ export async function pingLion() {
   return true
 }
 
+// 3rd skill — send one message in the ongoing conversation. Returns { reply }.
+export async function lionChat(message, { locale = 'en' } = {}) {
+  const { data, error } = await supabase.functions.invoke('lion', {
+    body: { skill: 'chat', message, locale },
+  })
+  if (error) {
+    let body
+    try { body = await error.context?.json?.() } catch { /* ignore */ }
+    const err = new Error(body?.error || error.message || 'The Lion could not respond.')
+    err.code = body?.code
+    throw err
+  }
+  if (data?.error) {
+    const err = new Error(data.error)
+    err.code = data.code
+    throw err
+  }
+  return data // { reply }
+}
+
+// Full conversation history (oldest→newest) for the signed-in user.
+export async function lionHistory(limit = 50) {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+  const { data } = await supabase
+    .from('lion_messages')
+    .select('role, content, created_at')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: true })
+    .limit(limit)
+  return data ?? []
+}
+
 // Latest saved insight for the signed-in user (to show without re-generating).
 export async function latestInsight(skill = 'personality') {
   const { data: { user } } = await supabase.auth.getUser()
