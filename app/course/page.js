@@ -7,9 +7,12 @@ import { supabase } from '../lib/supabaseClient'
 import { awardXp } from '../lib/xp'
 import { useLang } from '../lib/i18n'
 import { videoEmbed, audioEmbed } from '../lib/media'
+import BreathingIntro from '../components/BreathingIntro'
 
 const GRADED = new Set(['quiz', 'fill_blank', 'true_false', 'match'])
 const norm = (s) => String(s ?? '').trim().toLowerCase()
+// Minimum fraction of graded parts the user must get right to pass a course.
+const PASS_RATIO = 0.7
 
 export default function CoursePage() {
   return (
@@ -38,6 +41,7 @@ function CoursePlayer() {
   const [wasCompleted, setWasCompleted] = useState(false)
   const [loading, setLoading] = useState(true)
 
+  const [started, setStarted] = useState(false) // breathing intro gate
   const [stepIndex, setStepIndex] = useState(0)
   const [stepState, setStepState] = useState({}) // index -> { value, hasAnswer, checked, correct }
   const [submitting, setSubmitting] = useState(false)
@@ -93,6 +97,11 @@ function CoursePlayer() {
     )
   }
 
+  // Breathing ritual before the lesson begins (shown once per visit).
+  if (!started && !finished) {
+    return <BreathingIntro onDone={() => setStarted(true)} t={t} />
+  }
+
   const block = blocks[stepIndex]
   const st = stepState[stepIndex] || {}
   const isGraded = GRADED.has(block.type)
@@ -127,6 +136,7 @@ function CoursePlayer() {
     const gradedSteps = blocks.map((b, i) => ({ b, s: stepState[i] || {} })).filter((x) => GRADED.has(x.b.type))
     const total = gradedSteps.length
     const score = gradedSteps.filter((x) => x.s.correct).length
+    const passed = total === 0 || score / total >= PASS_RATIO
     const writing = blocks
       .map((b, i) => (b.type === 'writing' ? (stepState[i]?.value || '') : ''))
       .filter(Boolean)
@@ -134,7 +144,13 @@ function CoursePlayer() {
 
     const { data: { user } } = await supabase.auth.getUser()
     if (wasCompleted) {
-      setFinished({ xpGained: 0, score, total, evolvedTo: null })
+      setFinished({ passed: true, xpGained: 0, score, total, evolvedTo: null })
+      setSubmitting(false)
+      return
+    }
+    // Didn't reach the passing score — no completion, no XP; let them retry.
+    if (!passed) {
+      setFinished({ passed: false, xpGained: 0, score, total, evolvedTo: null })
       setSubmitting(false)
       return
     }
@@ -165,7 +181,7 @@ function CoursePlayer() {
       userId: user.id, source: 'course', sourceRef: level.level_id, amount: level.xp_reward,
       profilePatch: { current_level: level.level_number + 1 },
     })
-    setFinished({ xpGained: level.xp_reward, score, total, evolvedTo })
+    setFinished({ passed: true, xpGained: level.xp_reward, score, total, evolvedTo })
     setSubmitting(false)
   }
 
@@ -174,8 +190,14 @@ function CoursePlayer() {
     else advance()
   }
 
+  function retry() {
+    setFinished(null)
+    setStepIndex(0)
+    setStepState({})
+  }
+
   if (finished) {
-    return <CompletionScreen title={titleLoc} result={finished} onDone={() => router.push('/learn')} t={t} />
+    return <CompletionScreen title={titleLoc} result={finished} onDone={() => router.push('/learn')} onRetry={retry} t={t} />
   }
 
   return (
@@ -436,8 +458,26 @@ function bfLabel(block) {
   return block.type === 'quiz' ? 'Quiz' : block.type
 }
 
-function CompletionScreen({ title, result, onDone, t }) {
-  const { xpGained, score, total, evolvedTo } = result
+function CompletionScreen({ title, result, onDone, onRetry, t }) {
+  const { passed, xpGained, score, total, evolvedTo } = result
+
+  if (passed === false) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 text-center">
+        <div className="animate-pop max-w-sm">
+          <div className="text-6xl mb-4">🦁</div>
+          <h1 className="font-display text-3xl text-amber-400 mb-2">{t('course.failed')}</h1>
+          <p className="text-stone-400 mb-6">{t('course.failedMsg', { pct: Math.round(PASS_RATIO * 100) })}</p>
+          <div className="flex gap-3 justify-center mb-8">
+            <Pill label={t('course.quiz')} value={`${score}/${total}`} />
+          </div>
+          <PrimaryButton onClick={onRetry}>{t('course.tryAgain')}</PrimaryButton>
+          <button onClick={onDone} className="mt-3 text-stone-500 underline text-sm">{t('course.back')}</button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center px-4 text-center">
       <div className="animate-pop max-w-sm">

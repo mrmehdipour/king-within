@@ -85,6 +85,7 @@ export default function JournalPage() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function submit() {
@@ -141,35 +142,50 @@ export default function JournalPage() {
             <p className="text-lg text-white font-medium leading-snug">{prompt}</p>
           </div>
 
-          <label className="block text-stone-400 text-sm mb-1">{t('journal.yourAnswer')}</label>
-          <textarea
-            value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
-            rows={5}
-            placeholder={t('journal.answerPlaceholder')}
-            className="w-full px-4 py-3 rounded-xl bg-stone-900 text-white placeholder-stone-600 border border-stone-700 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none mb-4"
-          />
+          {done ? (
+            /* Locked for the rest of the day — answer is saved and read-only. */
+            <div className="bg-stone-900 border border-amber-500/30 rounded-2xl p-5">
+              <label className="block text-stone-400 text-sm mb-1">{t('journal.yourAnswer')}</label>
+              <p className="text-white whitespace-pre-wrap mb-3">{answer}</p>
+              {free && (
+                <>
+                  <label className="block text-stone-400 text-sm mb-1">{t('journal.open')}</label>
+                  <p className="text-stone-300 whitespace-pre-wrap mb-3">{free}</p>
+                </>
+              )}
+              <p className="text-green-400 text-sm">
+                {justXp ? t('journal.doneTodayXp', { xp: JOURNAL_XP }) : t('journal.doneToday')}
+              </p>
+              <p className="text-stone-500 text-sm mt-1">{t('journal.locked')}</p>
+            </div>
+          ) : (
+            <>
+              <label className="block text-stone-400 text-sm mb-1">{t('journal.yourAnswer')}</label>
+              <textarea
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                rows={5}
+                placeholder={t('journal.answerPlaceholder')}
+                className="w-full px-4 py-3 rounded-xl bg-stone-900 text-white placeholder-stone-600 border border-stone-700 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none mb-4"
+              />
 
-          <label className="block text-stone-400 text-sm mb-1">{t('journal.open')} <span className="text-stone-600">{t('journal.optional')}</span></label>
-          <textarea
-            value={free}
-            onChange={(e) => setFree(e.target.value)}
-            rows={4}
-            placeholder={t('journal.openPlaceholder')}
-            className="w-full px-4 py-3 rounded-xl bg-stone-900 text-white placeholder-stone-600 border border-stone-700 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none mb-4"
-          />
+              <label className="block text-stone-400 text-sm mb-1">{t('journal.open')} <span className="text-stone-600">{t('journal.optional')}</span></label>
+              <textarea
+                value={free}
+                onChange={(e) => setFree(e.target.value)}
+                rows={4}
+                placeholder={t('journal.openPlaceholder')}
+                className="w-full px-4 py-3 rounded-xl bg-stone-900 text-white placeholder-stone-600 border border-stone-700 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none mb-4"
+              />
 
-          <button
-            onClick={submit}
-            disabled={saving || !answer.trim()}
-            className="w-full bg-amber-500 hover:bg-amber-400 text-stone-900 font-bold py-3.5 rounded-xl transition disabled:opacity-40"
-          >
-            {saving ? t('course.saving') : done ? t('journal.update') : t('journal.save', { xp: JOURNAL_XP })}
-          </button>
-          {done && (
-            <p className="text-green-400 text-sm text-center mt-3">
-              {justXp ? t('journal.doneTodayXp', { xp: JOURNAL_XP }) : t('journal.doneToday')}
-            </p>
+              <button
+                onClick={submit}
+                disabled={saving || !answer.trim()}
+                className="w-full bg-amber-500 hover:bg-amber-400 text-stone-900 font-bold py-3.5 rounded-xl transition disabled:opacity-40"
+              >
+                {saving ? t('course.saving') : t('journal.save', { xp: JOURNAL_XP })}
+              </button>
+            </>
           )}
         </>
       )}
@@ -179,10 +195,12 @@ export default function JournalPage() {
         <div className="mt-8">
           <h2 className="text-stone-400 text-sm font-semibold mb-2">{t('journal.past')}</h2>
           <div className="space-y-2">
-            {history.filter((h) => h.completed && h.entry_date !== today()).map((h) => (
+            {history.filter((h) => h.completed).map((h) => (
               <div key={h.id} className="bg-stone-900 border border-stone-800 rounded-xl p-3">
                 <p className="text-stone-500 text-xs mb-1">
-                  {new Date(h.entry_date).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' })}
+                  {h.entry_date === today()
+                    ? t('journal.todayLabel')
+                    : new Date(h.entry_date).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' })}
                 </p>
                 <p className="text-stone-300 text-sm">{localized(h.journal_questions, 'prompt', locale)}</p>
                 {h.answer_text && <p className="text-stone-500 text-sm mt-1 line-clamp-2">{h.answer_text}</p>}

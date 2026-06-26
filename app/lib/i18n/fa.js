@@ -92,6 +92,14 @@ const fa = {
   'course.match': 'جفت‌ها را وصل کن',
   'course.matchHint': 'یک مورد از سمت راست را بزن، سپس جفتش را از سمت دیگر.',
   'course.answerWas': 'پاسخ:',
+  'course.failed': 'نزدیک بودی',
+  'course.failedMsg': 'برای قبولی باید {pct}٪ را درست پاسخ دهی. درس را مرور کن و دوباره تلاش کن.',
+  'course.tryAgain': 'دوباره تلاش کن',
+  'course.breatheIn': 'دم بگیر',
+  'course.breatheOut': 'بازدم کن',
+  'course.breathOfN': 'نفس {n} از {total}',
+  'course.breathTitle': 'لحظه‌ای آرام بگیر',
+  'course.skip': 'رد کردن',
 
   // journal
   'journal.title': 'دفترچهٔ روزانه',
@@ -106,6 +114,8 @@ const fa = {
   'journal.update': 'به‌روزرسانی یادداشت',
   'journal.doneToday': '✓ برای امروز انجام شد. فردا برگرد.',
   'journal.doneTodayXp': '✓ برای امروز انجام شد — +{xp} امتیاز گرفتی. فردا برگرد.',
+  'journal.locked': '🔒 پرسش تازه فردا باز می‌شود.',
+  'journal.todayLabel': 'امروز',
   'journal.past': 'یادداشت‌های پیشین',
   'journal.loading': 'در حال بارگذاری پرسش امروز…',
   'journal.exhausted': 'به همهٔ پرسش‌ها پاسخ داده‌ای. به‌زودی پرسش‌های تازه می‌آید. 👑',

@@ -92,6 +92,14 @@ const en = {
   'course.match': 'Match the pairs',
   'course.matchHint': 'Tap an item on the left, then its match on the right.',
   'course.answerWas': 'Answer:',
+  'course.failed': 'Almost there',
+  'course.failedMsg': 'You need {pct}% correct to pass. Review the lesson and try again.',
+  'course.tryAgain': 'Try again',
+  'course.breatheIn': 'Breathe in',
+  'course.breatheOut': 'Breathe out',
+  'course.breathOfN': 'Breath {n} of {total}',
+  'course.breathTitle': 'Take a moment to arrive',
+  'course.skip': 'Skip',
 
   // journal
   'journal.title': 'Daily Journal',
@@ -106,6 +114,8 @@ const en = {
   'journal.update': 'Update entry',
   'journal.doneToday': '✓ Done for today. Come back tomorrow.',
   'journal.doneTodayXp': '✓ Done for today — +{xp} XP earned. Come back tomorrow.',
+  'journal.locked': '🔒 A new question unlocks tomorrow.',
+  'journal.todayLabel': 'Today',
   'journal.past': 'Past entries',
   'journal.loading': "Loading today's question…",
   'journal.exhausted': "You've answered every question in the bank. More are on the way. 👑",
