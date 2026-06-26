@@ -179,6 +179,12 @@ const fa = {
   'lion.live': 'شیر فعّال است',
   'lion.notLive': 'در دسترس نیست — از استقرار تابع و تنظیم کلید مطمئن شو',
 
+  // app update (native)
+  'update.title': 'به‌روزرسانی موجود است',
+  'update.body': 'نسخهٔ {version} آماده است. برای دریافت آخرین نسخه به‌روزرسانی کن.',
+  'update.now': 'به‌روزرسانی کن',
+  'update.later': 'بعداً',
+
   // blog
   'blog.library': 'کتابخانه',
   'blog.heading': 'نقشه‌های مطالعه',

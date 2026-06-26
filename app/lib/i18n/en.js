@@ -179,6 +179,12 @@ const en = {
   'lion.live': 'Lion is live',
   'lion.notLive': 'Not reachable — check the function is deployed and the key is set',
 
+  // app update (native)
+  'update.title': 'Update available',
+  'update.body': 'Version {version} is ready. Update to get the latest.',
+  'update.now': 'Update now',
+  'update.later': 'Later',
+
   // blog
   'blog.library': 'The Library',
   'blog.heading': 'Reading roadmaps',
