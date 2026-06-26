@@ -156,3 +156,11 @@ html:not([lang="fa"]) .lang-fa {
 .lion-thinking {
   animation: lion-pulse 1.4s ease-in-out infinite;
 }
+
+@keyframes lion-reveal {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.lion-reveal {
+  animation: lion-reveal 0.5s ease-out;
+}

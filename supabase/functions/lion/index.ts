@@ -45,6 +45,7 @@ const SKILLS: Record<
   {
     instruction: (locale: string) => string
     context: (supabase: any, userId: string) => Promise<string>
+    json?: boolean // ask the provider for a strict JSON object
   }
 > = {
   personality: {
@@ -62,13 +63,19 @@ Keep the whole thing under ~250 words. Language: ${locale === 'fa' ? 'Persian (�
   },
 
   coach: {
+    json: true,
     instruction: (locale) =>
-      `Give this person ONE short piece of guidance for today — like a coach who saw their recent journey.
+      `You are granting this person their DAILY AUDIENCE — a short, personal coaching moment, like a mentor who has watched their recent journey and speaks to them today.
 
-- 2-3 sentences only. Warm, direct, a little fierce. No headings, no lists.
-- Acknowledge something specific from their recent activity below.
-- End with one concrete thing to do today (a small, doable action).
-- Under ~70 words. Language: ${locale === 'fa' ? 'Persian (فارسی)' : 'English'}.`,
+Return ONLY a JSON object with exactly these keys:
+{
+  "greeting": "a short, warm, personal one-line greeting — you may reference the time of day, their archetype, or their streak",
+  "focus": "a 2 to 4 word theme for today, e.g. 'Discipline over mood'",
+  "message": "2-3 sentences of guidance that acknowledge something SPECIFIC from their recent activity below; warm, direct, a little fierce; no clichés",
+  "quest": "ONE small, concrete, doable action for today — a single sentence beginning with a verb"
+}
+
+All TEXT VALUES must be written in ${locale === 'fa' ? 'Persian (فارسی)' : 'English'}; keep the JSON keys in English. Do not wrap the JSON in markdown fences and do not add any text outside the JSON object.`,
     context: buildCoachContext,
   },
 }
@@ -219,7 +226,7 @@ async function withRetry(fn: () => Promise<Response>, maxAttempts = 3): Promise<
 }
 
 // Groq — OpenAI-compatible chat API. Free tier, fast, good multilingual (Persian).
-async function callGroq(apiKey: string, persona: string, prompt: string): Promise<ModelResult> {
+async function callGroq(apiKey: string, persona: string, prompt: string, wantsJson = false): Promise<ModelResult> {
   const model = Deno.env.get('GROQ_MODEL') ?? 'llama-3.3-70b-versatile'
   const res = await withRetry(() =>
     fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -233,6 +240,7 @@ async function callGroq(apiKey: string, persona: string, prompt: string): Promis
         ],
         temperature: 0.5,
         max_tokens: 800,
+        ...(wantsJson ? { response_format: { type: 'json_object' } } : {}),
       }),
     }),
   )
@@ -242,7 +250,7 @@ async function callGroq(apiKey: string, persona: string, prompt: string): Promis
 }
 
 // Gemini — fallback. (Free tier is region-gated; Iran etc. get limit 0.)
-async function callGemini(apiKey: string, persona: string, prompt: string): Promise<ModelResult> {
+async function callGemini(apiKey: string, persona: string, prompt: string, wantsJson = false): Promise<ModelResult> {
   const model = Deno.env.get('GEMINI_MODEL') ?? 'gemini-2.0-flash'
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`
   const res = await withRetry(() =>
@@ -252,7 +260,11 @@ async function callGemini(apiKey: string, persona: string, prompt: string): Prom
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: persona }] },
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.5, maxOutputTokens: 800 },
+        generationConfig: {
+          temperature: 0.5,
+          maxOutputTokens: 800,
+          ...(wantsJson ? { responseMimeType: 'application/json' } : {}),
+        },
       }),
     }),
   )
@@ -271,12 +283,12 @@ function activeProvider(): { name: string; key: string } | null {
   return null
 }
 
-async function callModel(persona: string, prompt: string): Promise<ModelResult & { provider: string }> {
+async function callModel(persona: string, prompt: string, wantsJson = false): Promise<ModelResult & { provider: string }> {
   const provider = activeProvider()
   if (!provider) return { ok: false, status: 500, detail: 'No model key set (GROQ_API_KEY or GEMINI_API_KEY).', provider: 'none' }
   const r = provider.name === 'groq'
-    ? await callGroq(provider.key, persona, prompt)
-    : await callGemini(provider.key, persona, prompt)
+    ? await callGroq(provider.key, persona, prompt, wantsJson)
+    : await callGemini(provider.key, persona, prompt, wantsJson)
   return { ...r, provider: provider.name }
 }
 
@@ -302,15 +314,16 @@ async function callModelInLanguage(
   persona: string,
   prompt: string,
   locale: string,
+  wantsJson = false,
 ): Promise<ModelResult & { provider: string }> {
-  const first = await callModel(persona, prompt)
+  const first = await callModel(persona, prompt, wantsJson)
   if (!first.ok || !first.content || !looksWrongLanguage(first.content, locale)) return first
 
   const langName = locale === 'fa' ? 'Persian (فارسی), Arabic script only' : 'English only'
   const reinforced =
     `${prompt}\n\nYour previous attempt used the WRONG language. Rewrite it entirely in ${langName}. ` +
     `Do not include a single word of Russian, Chinese, or any other language.`
-  const retry = await callModel(persona, reinforced)
+  const retry = await callModel(persona, reinforced, wantsJson)
   if (retry.ok && retry.content && !looksWrongLanguage(retry.content, locale)) return retry
   return retry.ok ? retry : first
 }
@@ -359,7 +372,7 @@ Deno.serve(async (req) => {
       `--- OUTPUT LANGUAGE ---\nWrite your entire response in ${langName}. ` +
       `Do not use Russian, Chinese, or any other language or alphabet.`
 
-    const result = await callModelInLanguage(PERSONA, prompt, locale)
+    const result = await callModelInLanguage(PERSONA, prompt, locale, skill.json === true)
 
     if (!result.ok) {
       console.error('Model error', result.provider, result.status, result.detail)

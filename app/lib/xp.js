@@ -34,3 +34,18 @@ export async function awardXp({ userId, source, sourceRef, amount, profilePatch 
 }
 
 export const JOURNAL_XP = 10
+export const COACH_XP = 5
+
+// Has the user already claimed today's Lion-coach quest XP? (one per calendar day)
+export async function coachQuestDoneToday(userId) {
+  const today = new Date().toISOString().slice(0, 10)
+  const { data } = await supabase
+    .from('xp_events')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('source', 'coach')
+    .eq('source_ref', today)
+    .limit(1)
+    .maybeSingle()
+  return !!data
+}
