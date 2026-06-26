@@ -1,6 +1,4 @@
 'use client'
-// 'use client' tells Next.js this page runs in the browser (not the server),
-// because we need to use React state (useState) and handle button clicks.
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -12,22 +10,41 @@ export default function SignupPage() {
   const router = useRouter()
   const t = useT()
 
-  // These hold whatever the user types into the form fields
+  const [mode, setMode] = useState('signup') // 'signup' | 'login'
+  const isLogin = mode === 'login'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [isLogin, setIsLogin] = useState(false) // toggles between Sign Up and Log In
+  const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('') // non-error info (e.g. confirm email)
+  const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(false)
 
-  async function handleSubmit(e) {
-    e.preventDefault() // stops the browser's default "reload the page" form behavior
+  // Password strength (enforced on sign up; "123456" fails — no letter).
+  const pw = {
+    len: password.length >= 8,
+    letter: /[a-zA-Z]/.test(password),
+    number: /[0-9]/.test(password),
+  }
+  const pwValid = pw.len && pw.letter && pw.number
+
+  function switchMode(next) {
+    setMode(next)
     setError('')
     setNotice('')
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    setError('')
+    setNotice('')
+
+    if (!isLogin && !pwValid) {
+      setError(t('signup.pwWeak'))
+      return
+    }
     setLoading(true)
 
     if (isLogin) {
-      // LOG IN an existing user
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) {
         setError(error.message)
@@ -35,39 +52,56 @@ export default function SignupPage() {
         return
       }
     } else {
-      // SIGN UP a new user
-      // Remember: the database trigger we created automatically makes
-      // their 'profiles' row (Initiate, Level 1, 0 XP) the instant this succeeds.
       const { data, error } = await supabase.auth.signUp({ email, password })
       if (error) {
         setError(error.message)
         setLoading(false)
         return
       }
-      // If "Confirm email" is enabled in Supabase, signUp returns no session yet.
-      // Don't push to /learn (they'd bounce back) — tell them to confirm + log in.
+      // With "Confirm email" on, there's no session yet — guide them to confirm.
       if (!data.session) {
         setNotice(t('signup.confirmNotice'))
-        setIsLogin(true)
+        setMode('login')
         setLoading(false)
         return
       }
     }
 
-    // Active session — send them into the app shell
     router.push('/learn')
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-stone-900 px-4">
-      <div className="w-full max-w-sm bg-stone-800 rounded-lg p-8 shadow-xl">
+      <div className="w-full max-w-sm bg-stone-800 rounded-2xl p-7 shadow-xl">
         <div className="flex justify-end mb-2"><LanguageToggle /></div>
-        <h1 className="text-2xl font-bold text-amber-400 mb-2 text-center font-display">
+        <h1 className="text-2xl font-bold text-amber-400 mb-1 text-center font-display">
           {t('signup.title')}
         </h1>
-        <p className="text-stone-400 text-sm text-center mb-6">
+        <p className="text-stone-400 text-sm text-center mb-5">
           {isLogin ? t('signup.subtitleLogin') : t('signup.subtitleSignup')}
         </p>
+
+        {/* Distinct mode switch */}
+        <div className="grid grid-cols-2 gap-1 p-1 bg-stone-900 rounded-xl mb-5">
+          <button
+            type="button"
+            onClick={() => switchMode('signup')}
+            className={`py-2 rounded-lg text-sm font-semibold transition ${
+              !isLogin ? 'bg-amber-500 text-stone-900' : 'text-stone-400 hover:text-stone-200'
+            }`}
+          >
+            {t('signup.tabSignup')}
+          </button>
+          <button
+            type="button"
+            onClick={() => switchMode('login')}
+            className={`py-2 rounded-lg text-sm font-semibold transition ${
+              isLogin ? 'bg-amber-500 text-stone-900' : 'text-stone-400 hover:text-stone-200'
+            }`}
+          >
+            {t('signup.tabLogin')}
+          </button>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
@@ -76,41 +110,59 @@ export default function SignupPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full px-4 py-2 rounded bg-stone-700 text-white placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
-          />
-          <input
-            type="password"
-            placeholder={t('signup.password')}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-            className="w-full px-4 py-2 rounded bg-stone-700 text-white placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            autoComplete="email"
+            className="w-full px-4 py-2.5 rounded-lg bg-stone-700 text-white placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
           />
 
-          {error && (
-            <p className="text-red-400 text-sm">{error}</p>
+          <div className="relative">
+            <input
+              type={showPw ? 'text' : 'password'}
+              placeholder={t('signup.password')}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete={isLogin ? 'current-password' : 'new-password'}
+              className="w-full px-4 py-2.5 pe-16 rounded-lg bg-stone-700 text-white placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPw((s) => !s)}
+              className="absolute inset-y-0 end-3 my-auto text-stone-400 hover:text-amber-400 text-xs font-semibold"
+            >
+              {showPw ? t('signup.hidePw') : t('signup.showPw')}
+            </button>
+          </div>
+
+          {/* Live password requirements (sign up only) */}
+          {!isLogin && password.length > 0 && (
+            <ul className="space-y-1 -mt-1">
+              <Req ok={pw.len} label={t('signup.pwLen')} />
+              <Req ok={pw.letter} label={t('signup.pwLetter')} />
+              <Req ok={pw.number} label={t('signup.pwNumber')} />
+            </ul>
           )}
-          {notice && (
-            <p className="text-amber-400 text-sm">{notice}</p>
-          )}
+
+          {error && <p className="text-red-400 text-sm">{error}</p>}
+          {notice && <p className="text-amber-400 text-sm">{notice}</p>}
 
           <button
             type="submit"
-            disabled={loading}
-            className="w-full bg-amber-600 hover:bg-amber-500 text-stone-900 font-semibold py-2 rounded transition disabled:opacity-50"
+            disabled={loading || (!isLogin && !pwValid)}
+            className="w-full bg-amber-600 hover:bg-amber-500 text-stone-900 font-semibold py-2.5 rounded-lg transition disabled:opacity-50"
           >
             {loading ? t('signup.wait') : isLogin ? t('signup.login') : t('signup.start')}
           </button>
         </form>
-
-        <button
-          onClick={() => setIsLogin(!isLogin)}
-          className="w-full text-stone-400 text-sm mt-4 hover:text-amber-400 transition"
-        >
-          {isLogin ? t('signup.toSignup') : t('signup.toLogin')}
-        </button>
       </div>
     </div>
+  )
+}
+
+function Req({ ok, label }) {
+  return (
+    <li className={`flex items-center gap-2 text-xs ${ok ? 'text-green-400' : 'text-stone-500'}`}>
+      <span className="inline-block w-3.5">{ok ? '✓' : '○'}</span>
+      {label}
+    </li>
   )
 }

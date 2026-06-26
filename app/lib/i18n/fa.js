@@ -52,6 +52,14 @@ const fa = {
   'signup.toSignup': 'تازه‌واردی؟ حساب بساز',
   'signup.toLogin': 'قبلاً در مسیری؟ وارد شو',
   'signup.confirmNotice': 'حساب ساخته شد. برای تأیید، ایمیلت را بررسی کن و سپس وارد شو.',
+  'signup.tabSignup': 'ثبت‌نام',
+  'signup.tabLogin': 'ورود',
+  'signup.showPw': 'نمایش',
+  'signup.hidePw': 'پنهان',
+  'signup.pwWeak': 'گذرواژهٔ قوی‌تری انتخاب کن.',
+  'signup.pwLen': 'حداقل ۸ نویسه',
+  'signup.pwLetter': 'شامل یک حرف',
+  'signup.pwNumber': 'شامل یک عدد',
 
   // learn
   'learn.currentArchetype': 'کهن‌الگوی کنونی',

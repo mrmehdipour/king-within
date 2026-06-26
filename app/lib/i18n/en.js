@@ -52,6 +52,14 @@ const en = {
   'signup.toSignup': 'New here? Create an account',
   'signup.toLogin': 'Already on the path? Log in',
   'signup.confirmNotice': 'Account created. Check your email to confirm, then log in.',
+  'signup.tabSignup': 'Sign up',
+  'signup.tabLogin': 'Log in',
+  'signup.showPw': 'Show',
+  'signup.hidePw': 'Hide',
+  'signup.pwWeak': 'Choose a stronger password.',
+  'signup.pwLen': 'At least 8 characters',
+  'signup.pwLetter': 'Contains a letter',
+  'signup.pwNumber': 'Contains a number',
 
   // learn
   'learn.currentArchetype': 'Current archetype',
