@@ -1,36 +1,22 @@
 'use client'
 
 import { supabase } from './supabaseClient'
-import { getArchetypeForXp } from './archetypes'
 
-// Single place that grants XP: writes a row to the xp_events ledger (which powers
-// the live stats) AND bumps profiles.total_xp + recomputes the archetype.
-// `profilePatch` lets the caller set extra profile fields in the same update
-// (e.g. current_level after a course). Returns { newXp, evolvedTo }.
-export async function awardXp({ userId, source, sourceRef, amount, profilePatch = {} }) {
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('total_xp, current_archetype')
-    .eq('id', userId)
-    .single()
-
-  const prevXp = profile?.total_xp ?? 0
-  const newXp = prevXp + amount
-  const newArchetype = getArchetypeForXp(newXp)
-  const evolvedTo = profile && newArchetype !== profile.current_archetype ? newArchetype : null
-
-  await supabase.from('xp_events').insert({
-    user_id: userId,
-    source,
-    source_ref: sourceRef != null ? String(sourceRef) : null,
-    amount,
+// Single place that grants XP. Delegates to the server-side `award_xp` RPC
+// (db/10_security_hardening.sql): the SERVER decides the amount per source and
+// verifies the action really happened, so XP can't be tampered with from the
+// client. It also writes the xp_events ledger row and bumps profiles.total_xp /
+// archetype / level atomically and idempotently. Returns { newXp, evolvedTo }.
+//
+// The legacy args (userId, amount, profilePatch) are accepted for caller
+// compatibility but ignored — the server derives all of it from `source`+`sourceRef`.
+export async function awardXp({ source, sourceRef }) {
+  const { data, error } = await supabase.rpc('award_xp', {
+    p_source: source,
+    p_source_ref: sourceRef != null ? String(sourceRef) : null,
   })
-  await supabase
-    .from('profiles')
-    .update({ total_xp: newXp, current_archetype: newArchetype, ...profilePatch })
-    .eq('id', userId)
-
-  return { newXp, evolvedTo }
+  if (error) throw error
+  return { newXp: data?.new_xp ?? null, evolvedTo: data?.evolved ? data.archetype : null }
 }
 
 export const JOURNAL_XP = 10
