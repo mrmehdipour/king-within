@@ -31,7 +31,7 @@ const PERSONA = `You are the Lion of King Within — the guiding spirit of a sel
 Voice: wise, fierce, warm, and direct. You speak like a mentor who believes in the person but will not flatter them. You are concise. You never use corporate or therapy clichés.
 
 Rules:
-- Reply ONLY in the requested language (English or Persian/فارسی). If Persian, write natural, fluent Persian.
+- LANGUAGE IS CRITICAL: write your ENTIRE response in the ONE language requested below — either English or Persian (فارسی) — using only that language's script. NEVER mix in Russian, Chinese, or any other language or alphabet. If Persian is requested, write natural, fluent Persian in Arabic script. If English is requested, write only in English.
 - Ground every observation in the user's actual data below. Never invent facts about them.
 - Be specific and personal, not generic horoscope-speak.
 - Speak directly to the user as "you".`
@@ -231,7 +231,7 @@ async function callGroq(apiKey: string, persona: string, prompt: string): Promis
           { role: 'system', content: persona },
           { role: 'user', content: prompt },
         ],
-        temperature: 0.7,
+        temperature: 0.5,
         max_tokens: 800,
       }),
     }),
@@ -252,7 +252,7 @@ async function callGemini(apiKey: string, persona: string, prompt: string): Prom
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: persona }] },
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 800 },
+        generationConfig: { temperature: 0.5, maxOutputTokens: 800 },
       }),
     }),
   )
@@ -278,6 +278,41 @@ async function callModel(persona: string, prompt: string): Promise<ModelResult &
     ? await callGroq(provider.key, persona, prompt)
     : await callGemini(provider.key, persona, prompt)
   return { ...r, provider: provider.name }
+}
+
+// Smaller models sometimes drift into the wrong language (we saw Russian/Chinese
+// leak into Persian/English replies). Detect obvious wrong-script output so we
+// can retry with a stronger instruction.
+function looksWrongLanguage(text: string, locale: string): boolean {
+  // These scripts are never expected in either English or Persian output.
+  if (/[Ѐ-ӿ]/.test(text)) return true            // Cyrillic (Russian)
+  if (/[　-ヿ㐀-鿿가-힯]/.test(text)) return true // CJK / Hangul / Kana
+  const persianChars = (text.match(/[؀-ۿ]/g) || []).length
+  if (locale === 'fa') {
+    // A real Persian reply must be mostly Persian/Arabic script.
+    return persianChars < 10
+  }
+  // English reply: a few Persian glyphs are fine, but not a wall of them.
+  return persianChars > 25
+}
+
+// Call the model, and if it answers in the wrong language, retry once with a
+// reinforced demand. Returns the best result we got.
+async function callModelInLanguage(
+  persona: string,
+  prompt: string,
+  locale: string,
+): Promise<ModelResult & { provider: string }> {
+  const first = await callModel(persona, prompt)
+  if (!first.ok || !first.content || !looksWrongLanguage(first.content, locale)) return first
+
+  const langName = locale === 'fa' ? 'Persian (فارسی), Arabic script only' : 'English only'
+  const reinforced =
+    `${prompt}\n\nYour previous attempt used the WRONG language. Rewrite it entirely in ${langName}. ` +
+    `Do not include a single word of Russian, Chinese, or any other language.`
+  const retry = await callModel(persona, reinforced)
+  if (retry.ok && retry.content && !looksWrongLanguage(retry.content, locale)) return retry
+  return retry.ok ? retry : first
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -315,10 +350,16 @@ Deno.serve(async (req) => {
     if (!skill) return json({ error: `Unknown skill: ${skillName}`, code: 'bad_skill' }, 400)
 
     // Compose the prompt network: skill instruction + lean live context.
+    // The final line re-states the output language (recency helps small models
+    // stay on-language instead of drifting into Russian/Chinese).
+    const langName = locale === 'fa' ? 'Persian (فارسی), in Arabic script only' : 'English only'
     const context = await skill.context(supabase, user.id)
-    const prompt = `${skill.instruction(locale)}\n\n--- THIS PERSON'S DATA ---\n${context}`
+    const prompt =
+      `${skill.instruction(locale)}\n\n--- THIS PERSON'S DATA ---\n${context}\n\n` +
+      `--- OUTPUT LANGUAGE ---\nWrite your entire response in ${langName}. ` +
+      `Do not use Russian, Chinese, or any other language or alphabet.`
 
-    const result = await callModel(PERSONA, prompt)
+    const result = await callModelInLanguage(PERSONA, prompt, locale)
 
     if (!result.ok) {
       console.error('Model error', result.provider, result.status, result.detail)

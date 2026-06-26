@@ -28,6 +28,7 @@ const en = {
   'landing.pathTitle': 'The path',
   'landing.howTitle': 'How it works',
   'landing.finalCta': 'Begin as an Initiate',
+  'landing.downloadAndroid': 'Download for Android',
   'landing.arch.initiate.desc': 'See clearly',
   'landing.arch.warrior.desc': 'Hold the line',
   'landing.arch.magician.desc': 'Shape your world',

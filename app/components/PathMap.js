@@ -1,11 +1,12 @@
 'use client'
 
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useT, useLang } from '../lib/i18n'
 import { localized } from '../lib/localized'
 
-// Side-to-side offsets that give the path its winding shape (repeats every 8).
-const WAVE = [0, 55, 80, 55, 0, -55, -80, -55]
+// Side-to-side offsets that give the path its zigzag shape (repeats every 4):
+// centre → right → centre → left, so straight connectors form sharp angles.
+const WAVE = [0, 80, 0, -80]
 
 // Renders the levels as a winding path of circular nodes connected by dotted
 // lines. The connectors are drawn in an SVG layer behind the nodes; their
@@ -14,7 +15,18 @@ const WAVE = [0, 55, 80, 55, 0, -55, -80, -55]
 export default function PathMap({ levels, getLevelStatus, currentLevelId, onSelect }) {
   const containerRef = useRef(null)
   const nodeRefs = useRef({}) // level_id -> DOM node
+  const scrolledRef = useRef(false)
   const [layout, setLayout] = useState({ width: 0, height: 0, points: [] })
+
+  // Glide the current node into view once, after the layout settles.
+  useEffect(() => {
+    if (scrolledRef.current || !currentLevelId) return
+    const el = nodeRefs.current[currentLevelId]
+    if (!el) return
+    scrolledRef.current = true
+    const id = setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 250)
+    return () => clearTimeout(id)
+  }, [currentLevelId, layout.points])
 
   // Precompute display metadata without mutating during render.
   const items = levels.map((level, i) => ({
@@ -50,15 +62,14 @@ export default function PathMap({ levels, getLevelStatus, currentLevelId, onSele
     }
   }, [levels])
 
-  // Build smooth S-curve connectors between consecutive nodes within a unit.
+  // Build straight zigzag connectors between consecutive nodes within a unit.
   const connectors = []
   for (let i = 0; i < items.length - 1; i++) {
     if (items[i + 1].startsUnit) continue // a unit banner sits between them
     const a = layout.points[i]
     const b = layout.points[i + 1]
     if (!a || !b) continue
-    const midY = (a.y + b.y) / 2
-    connectors.push(`M ${a.x} ${a.y} C ${a.x} ${midY}, ${b.x} ${midY}, ${b.x} ${b.y}`)
+    connectors.push(`M ${a.x} ${a.y} L ${b.x} ${b.y}`)
   }
 
   return (

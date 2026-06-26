@@ -28,6 +28,7 @@ const fa = {
   'landing.pathTitle': 'مسیر',
   'landing.howTitle': 'چطور کار می‌کند',
   'landing.finalCta': 'به‌عنوان نوآموز شروع کن',
+  'landing.downloadAndroid': 'دانلود نسخه اندروید',
   'landing.arch.initiate.desc': 'شفاف ببین',
   'landing.arch.warrior.desc': 'پایداری کن',
   'landing.arch.magician.desc': 'جهانت را بساز',
