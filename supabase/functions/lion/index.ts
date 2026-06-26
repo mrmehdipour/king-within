@@ -1,23 +1,21 @@
 // The Lion — King Within's AI agent (Supabase Edge Function, runs on Deno).
 //
 // This is the "network of prompts", not one prompt:
-//   PERSONA  — the Lion's constant identity (systemInstruction)
-//   CONTEXT  — live user data, fetched and stitched in at runtime
+//   PERSONA  — the Lion's constant identity
+//   CONTEXT  — live user data, fetched and stitched in at runtime (lean: only
+//              high-signal reflections; quizzes collapsed to a score)
 //   SKILLS   — a registry of focused task-prompts; the router picks one
 //   OUTPUT   — saved to lion_insights and returned to the app
 //
-// The function runs with the CALLER'S JWT, so Supabase RLS lets it read/write
-// only that user's rows. The Gemini key lives in a Supabase secret, never the client.
+// Provider-agnostic: if GROQ_API_KEY is set it uses Groq (free tier works in
+// regions where Gemini's free tier is blocked); otherwise it falls back to
+// Gemini. The API key lives in a Supabase secret, never the client.
 //
 // Deploy:  supabase functions deploy lion
-// Secret:  supabase secrets set GEMINI_API_KEY=<your key>
+// Secret:  supabase secrets set GROQ_API_KEY=<key>     (recommended)
+//      or: supabase secrets set GEMINI_API_KEY=<key>
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-
-// gemini-1.5-flash was retired; 2.0-flash is the current free model.
-// Override with a GEMINI_MODEL secret if you want a different one.
-const MODEL = Deno.env.get('GEMINI_MODEL') ?? 'gemini-2.0-flash'
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -51,7 +49,7 @@ const SKILLS: Record<
 > = {
   personality: {
     instruction: (locale) =>
-      `Write a personality reflection for this person based on how they answered their course questions and what they wrote in their journal.
+      `Write a personality reflection for this person based on what they wrote (their reflections carry the most signal; the quiz score is secondary).
 
 Structure your reply with these short sections (translate the headings if writing in Persian):
 1. Who you are right now — 2-3 sentences capturing their current character.
@@ -65,50 +63,73 @@ Keep the whole thing under ~250 words. Language: ${locale === 'fa' ? 'Persian (�
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 2 · CONTEXT builders — turn DB rows into readable text for the prompt.
+// 2 · CONTEXT builders — turn DB rows into LEAN, high-signal text for the prompt.
+//     We DON'T dump every answer. Writing/journal reflections are the gold;
+//     quizzes are collapsed to a score plus only the ones they got wrong.
 // ─────────────────────────────────────────────────────────────────────────────
+const MAX_WRITING = 18   // richest signal — their own words
+const MAX_JOURNAL = 14
+const MAX_WRONG = 8      // a few misconceptions are useful; the rest is noise
+
 async function buildPersonalityContext(supabase: any, userId: string): Promise<string> {
   const [{ data: profile }, { data: answers }, { data: journal }] = await Promise.all([
     supabase.from('profiles').select('current_archetype, current_level, total_xp').eq('id', userId).single(),
     supabase
       .from('user_answers')
-      .select('type, answer, is_correct, created_at, course_blocks(content), levels(title)')
+      .select('type, answer, is_correct, course_blocks(content)')
       .eq('user_id', userId)
-      .order('created_at', { ascending: true })
-      .limit(80),
+      .order('created_at', { ascending: false }) // most recent first
+      .limit(120),
     supabase
       .from('journal_entries')
-      .select('answer_text, free_text, entry_date, journal_questions(prompt)')
+      .select('answer_text, free_text, journal_questions(prompt)')
       .eq('user_id', userId)
       .eq('completed', true)
-      .order('entry_date', { ascending: true })
-      .limit(40),
+      .order('entry_date', { ascending: false })
+      .limit(MAX_JOURNAL),
   ])
+
+  const all = answers ?? []
+  const writing = all.filter((a: any) => a.type === 'writing' && a.answer?.value).slice(0, MAX_WRITING)
+  const graded = all.filter((a: any) => a.is_correct !== null)
+  const correct = graded.filter((a: any) => a.is_correct === true).length
+  const wrong = graded.filter((a: any) => a.is_correct === false).slice(0, MAX_WRONG)
 
   const lines: string[] = []
   lines.push(
     `PROFILE: archetype=${profile?.current_archetype ?? 'Initiate'}, level=${profile?.current_level ?? 0}, total_xp=${profile?.total_xp ?? 0}`,
   )
 
-  lines.push('\nCOURSE ANSWERS:')
-  if (answers?.length) {
-    for (const a of answers) {
+  // Quizzes: a single score line + only wrong ones (saves the bulk of the tokens).
+  lines.push(`\nQUIZ PERFORMANCE: ${correct}/${graded.length} correct.`)
+  if (wrong.length) {
+    lines.push('Recently got wrong:')
+    for (const a of wrong) {
       const c = a.course_blocks?.content ?? {}
-      const question = c.prompt ?? c.statement ?? c.sentence ?? a.levels?.title ?? '(part)'
-      const value = formatAnswer(a.type, a.answer?.value)
-      const mark = a.is_correct === true ? ' ✓' : a.is_correct === false ? ' ✗' : ''
-      lines.push(`- [${a.type}] ${truncate(question, 160)} → "${truncate(value, 200)}"${mark}`)
+      const q = c.prompt ?? c.statement ?? c.sentence ?? '(question)'
+      lines.push(`- ${truncate(q, 90)} → "${truncate(formatAnswer(a.type, a.answer?.value), 90)}"`)
+    }
+  }
+
+  // Writing reflections — their own words, the heart of the analysis.
+  lines.push('\nWRITTEN REFLECTIONS (course):')
+  if (writing.length) {
+    for (const a of writing) {
+      const c = a.course_blocks?.content ?? {}
+      const q = c.prompt ?? '(prompt)'
+      lines.push(`- ${truncate(q, 90)} → "${truncate(String(a.answer?.value ?? ''), 220)}"`)
     }
   } else {
     lines.push('(none yet)')
   }
 
+  // Journal entries.
   lines.push('\nJOURNAL ENTRIES:')
   if (journal?.length) {
     for (const j of journal) {
       const prompt = j.journal_questions?.prompt ?? '(daily prompt)'
       const ans = [j.answer_text, j.free_text].filter(Boolean).join(' — ')
-      if (ans) lines.push(`- ${truncate(prompt, 140)} → "${truncate(ans, 300)}"`)
+      if (ans) lines.push(`- ${truncate(prompt, 90)} → "${truncate(ans, 220)}"`)
     }
   } else {
     lines.push('(none yet)')
@@ -130,36 +151,95 @@ function truncate(s: string, n: number): string {
   return s.length > n ? s.slice(0, n - 1) + '…' : s
 }
 
-// Call Gemini, retrying on rate-limit (429) and overload (503) with exponential
-// backoff. Returns the final Response (ok or not) for the handler to interpret.
-async function callGeminiWithRetry(apiKey: string, payload: unknown, maxAttempts = 3): Promise<Response> {
+// ─────────────────────────────────────────────────────────────────────────────
+// Model providers. Each returns a normalized result. Retry on 429/503.
+// ─────────────────────────────────────────────────────────────────────────────
+type ModelResult = { ok: boolean; status: number; content?: string; detail?: string }
+
+async function withRetry(fn: () => Promise<Response>, maxAttempts = 3): Promise<Response> {
   let res!: Response
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    res = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
+    res = await fn()
     if (res.ok || (res.status !== 429 && res.status !== 503)) return res
-    if (attempt < maxAttempts) {
-      await new Promise((r) => setTimeout(r, 500 * 2 ** (attempt - 1))) // 0.5s, 1s
-    }
+    if (attempt < maxAttempts) await new Promise((r) => setTimeout(r, 500 * 2 ** (attempt - 1)))
   }
   return res
 }
 
+// Groq — OpenAI-compatible chat API. Free tier, fast, good multilingual (Persian).
+async function callGroq(apiKey: string, persona: string, prompt: string): Promise<ModelResult> {
+  const model = Deno.env.get('GROQ_MODEL') ?? 'llama-3.3-70b-versatile'
+  const res = await withRetry(() =>
+    fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: persona },
+          { role: 'user', content: prompt },
+        ],
+        temperature: 0.7,
+        max_tokens: 800,
+      }),
+    }),
+  )
+  if (!res.ok) return { ok: false, status: res.status, detail: await res.text() }
+  const data = await res.json()
+  return { ok: true, status: 200, content: data?.choices?.[0]?.message?.content ?? '' }
+}
+
+// Gemini — fallback. (Free tier is region-gated; Iran etc. get limit 0.)
+async function callGemini(apiKey: string, persona: string, prompt: string): Promise<ModelResult> {
+  const model = Deno.env.get('GEMINI_MODEL') ?? 'gemini-2.0-flash'
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`
+  const res = await withRetry(() =>
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: persona }] },
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.7, maxOutputTokens: 800 },
+      }),
+    }),
+  )
+  if (!res.ok) return { ok: false, status: res.status, detail: await res.text() }
+  const data = await res.json()
+  const content = data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') ?? ''
+  return { ok: true, status: 200, content }
+}
+
+// Router: pick whichever provider has a key (Groq preferred).
+function activeProvider(): { name: string; key: string } | null {
+  const groq = Deno.env.get('GROQ_API_KEY')
+  if (groq) return { name: 'groq', key: groq }
+  const gemini = Deno.env.get('GEMINI_API_KEY')
+  if (gemini) return { name: 'gemini', key: gemini }
+  return null
+}
+
+async function callModel(persona: string, prompt: string): Promise<ModelResult & { provider: string }> {
+  const provider = activeProvider()
+  if (!provider) return { ok: false, status: 500, detail: 'No model key set (GROQ_API_KEY or GEMINI_API_KEY).', provider: 'none' }
+  const r = provider.name === 'groq'
+    ? await callGroq(provider.key, persona, prompt)
+    : await callGemini(provider.key, persona, prompt)
+  return { ...r, provider: provider.name }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Handler — the router + model call + output.
+// Handler — auth + router + model call + output.
 // ─────────────────────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
 
   try {
-    const apiKey = Deno.env.get('GEMINI_API_KEY')
-    if (!apiKey) return json({ error: 'Server is missing GEMINI_API_KEY.' }, 500)
+    const provider = activeProvider()
+    if (!provider) return json({ error: 'Server is missing a model key (GROQ_API_KEY or GEMINI_API_KEY).', code: 'no_key' }, 500)
 
     const authHeader = req.headers.get('Authorization') ?? ''
-    if (!authHeader) return json({ error: 'Not signed in.' }, 401)
+    if (!authHeader) return json({ error: 'Not signed in.', code: 'auth' }, 401)
 
     // Client bound to the caller's JWT → RLS scopes every query to this user.
     const supabase = createClient(
@@ -175,41 +255,29 @@ Deno.serve(async (req) => {
     const skillName: string = body.skill ?? 'personality'  // ← router (simple for now)
     const locale: string = body.locale === 'fa' ? 'fa' : 'en'
 
-    // Lightweight health check — confirms the function is live and the key is set,
-    // without spending Gemini quota.
-    if (skillName === 'ping') return json({ ok: true, model: MODEL })
+    // Lightweight health check — confirms the function is live and a key is set,
+    // without spending any model quota.
+    if (skillName === 'ping') return json({ ok: true, provider: provider.name })
 
     const skill = SKILLS[skillName]
     if (!skill) return json({ error: `Unknown skill: ${skillName}`, code: 'bad_skill' }, 400)
 
-    // Compose the prompt network: skill instruction + live context.
+    // Compose the prompt network: skill instruction + lean live context.
     const context = await skill.context(supabase, user.id)
     const prompt = `${skill.instruction(locale)}\n\n--- THIS PERSON'S DATA ---\n${context}`
 
-    // Call Gemini Flash (with retry on rate-limit / transient errors).
-    // Persona goes in systemInstruction (the constant identity).
-    const payload = {
-      systemInstruction: { parts: [{ text: PERSONA }] },
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.7, maxOutputTokens: 800 },
-    }
+    const result = await callModel(PERSONA, prompt)
 
-    const res = await callGeminiWithRetry(apiKey, payload)
-
-    if (!res.ok) {
-      const detail = await res.text()
-      console.error('Gemini error', MODEL, res.status, detail) // shows in function logs
-      // 429 = rate limited, 503 = model overloaded — both are "try again" cases.
-      if (res.status === 429) {
-        return json({ error: 'The Lion is being asked too much right now. Try again in a few seconds.', code: 'rate_limit', detail }, 429)
+    if (!result.ok) {
+      console.error('Model error', result.provider, result.status, result.detail)
+      if (result.status === 429) {
+        return json({ error: 'The Lion is being asked too much right now. Try again in a few seconds.', code: 'rate_limit', detail: result.detail }, 429)
       }
-      return json({ error: 'The Lion could not respond right now.', code: 'upstream', detail }, 502)
+      return json({ error: 'The Lion could not respond right now.', code: 'upstream', detail: result.detail }, 502)
     }
 
-    const data = await res.json()
-    const content: string =
-      data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') ?? ''
-    if (!content.trim()) return json({ error: 'The Lion returned nothing. Try again.', code: 'empty' }, 502)
+    const content = (result.content ?? '').trim()
+    if (!content) return json({ error: 'The Lion returned nothing. Try again.', code: 'empty' }, 502)
 
     // Save the insight (RLS lets the user insert their own row).
     await supabase.from('lion_insights').insert({
@@ -217,10 +285,10 @@ Deno.serve(async (req) => {
       skill: skillName,
       locale,
       content,
-      model: MODEL,
+      model: result.provider,
     })
 
-    return json({ content, skill: skillName, locale })
+    return json({ content, skill: skillName, locale, provider: result.provider })
   } catch (e) {
     return json({ error: 'Unexpected error.', detail: String(e) }, 500)
   }

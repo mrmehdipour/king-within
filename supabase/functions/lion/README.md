@@ -1,8 +1,13 @@
 # The Lion — AI agent setup
 
-The Lion is a Supabase Edge Function that reads a user's data and asks Google
-Gemini Flash for a personality reflection. The Gemini key lives **only** in a
-Supabase secret — never in the app/client.
+The Lion is a Supabase Edge Function that reads a user's data and asks an LLM for
+a personality reflection. It's **provider-agnostic**: set `GROQ_API_KEY` to use
+Groq (recommended), or `GEMINI_API_KEY` to use Gemini. The key lives **only** in
+a Supabase secret — never in the app/client.
+
+> ⚠️ **Gemini's free tier is region-gated** and returns `limit: 0` for accounts in
+> unsupported countries (e.g. Iran). If you saw a 429 "RESOURCE_EXHAUSTED … limit: 0",
+> use **Groq** instead — its free tier works.
 
 ## One-time setup
 
@@ -10,10 +15,14 @@ Supabase secret — never in the app/client.
 Run `db/09_lion_agent.sql` in the Supabase SQL editor (creates `lion_insights`
 + RLS). Safe to re-run.
 
-### 2. Get a free Gemini API key
-- Go to https://aistudio.google.com/apikey (sign in with Google).
-- Click **Create API key**. Copy it. No credit card needed.
-- Free tier is plenty: ~15 requests/min, ~1M tokens/day.
+### 2. Get a free Groq API key (recommended)
+- Go to https://console.groq.com/keys (sign in — Google/GitHub/email).
+- **Create API Key**, copy it. No credit card needed.
+- Free tier is generous (thousands of requests/day) and fast. Default model
+  `llama-3.3-70b-versatile` handles Persian + English well.
+
+*(Alternative: a Gemini key from https://aistudio.google.com/apikey — only if your
+account's region supports the free tier.)*
 
 ### 3. Install the Supabase CLI (once)
 ```bash
@@ -28,11 +37,15 @@ Find your project ref in the Supabase dashboard URL
 supabase link --project-ref <REF>
 ```
 
-### 5. Store the Gemini key as a secret
+### 5. Store the model key as a secret
 ```bash
-supabase secrets set GEMINI_API_KEY=your_key_here
+supabase secrets set GROQ_API_KEY=your_groq_key_here
+# or, if using Gemini instead:
+# supabase secrets set GEMINI_API_KEY=your_gemini_key_here
 ```
-(`SUPABASE_URL` and `SUPABASE_ANON_KEY` are injected automatically — no need to set them.)
+If both are set, Groq wins. (`SUPABASE_URL` and `SUPABASE_ANON_KEY` are injected
+automatically — no need to set them.) You can also set the dashboard UI's
+**Edge Functions → Secrets** instead of the CLI.
 
 ### 6. Deploy the function
 ```bash
