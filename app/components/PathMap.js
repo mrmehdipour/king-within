@@ -4,136 +4,129 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useT, useLang } from '../lib/i18n'
 import { localized } from '../lib/localized'
 
-// Side-to-side offsets that give the path its zigzag shape (repeats every 4):
-// centre → right → centre → left, so straight connectors form sharp angles.
-const WAVE = [0, 80, 0, -80]
+// Side-to-side offsets within a level card (3 nodes): centre → right → left,
+// so the straight connectors form a clean zigzag.
+const WAVE = [0, 80, -80]
+const PER_LEVEL = 3
 
-// Renders the levels as a winding path of circular nodes connected by dotted
-// lines. The connectors are drawn in an SVG layer behind the nodes; their
-// endpoints are measured from the real DOM so they always track the responsive
-// zigzag layout (and re-measure on resize).
+// Very-light background tint per level (subtle on the dark theme); cycles.
+const LEVEL_TINTS = [
+  'rgba(245, 158, 11, 0.06)', // amber
+  'rgba(56, 189, 248, 0.06)', // sky
+  'rgba(52, 211, 153, 0.06)', // emerald
+  'rgba(167, 139, 250, 0.07)', // violet
+]
+
+// The learning path: courses grouped into "levels" of three. Each level is its
+// own faintly-tinted card with a zigzag of nodes; levels are split by a light
+// dotted divider.
 export default function PathMap({ levels, getLevelStatus, currentLevelId, onSelect }) {
-  const containerRef = useRef(null)
-  const nodeRefs = useRef({}) // level_id -> DOM node
   const scrolledRef = useRef(false)
-  const [layout, setLayout] = useState({ width: 0, height: 0, points: [] })
 
-  // Glide the current node into view once, after the layout settles.
+  // Group consecutive courses into levels of three (in display order).
+  const groups = []
+  levels.forEach((level, i) => {
+    const g = Math.floor(i / PER_LEVEL)
+    if (!groups[g]) groups[g] = []
+    groups[g].push({ level, offset: WAVE[groups[g].length % WAVE.length] })
+  })
+
+  // Glide the current node into view once, after layout settles.
   useEffect(() => {
     if (scrolledRef.current || !currentLevelId) return
-    const el = nodeRefs.current[currentLevelId]
-    if (!el) return
-    scrolledRef.current = true
-    const id = setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 250)
+    const id = setTimeout(() => {
+      const el = document.getElementById('kw-current-node')
+      if (el) { scrolledRef.current = true; el.scrollIntoView({ behavior: 'smooth', block: 'center' }) }
+    }, 300)
     return () => clearTimeout(id)
-  }, [currentLevelId, layout.points])
-
-  // Precompute display metadata without mutating during render.
-  const items = levels.map((level, i) => ({
-    level,
-    offset: WAVE[i % WAVE.length],
-    startsUnit: i === 0 || levels[i - 1].archetype_stage !== level.archetype_stage,
-  }))
-
-  useLayoutEffect(() => {
-    function measure() {
-      const container = containerRef.current
-      if (!container) return
-      const base = container.getBoundingClientRect()
-      const points = levels.map((level) => {
-        const el = nodeRefs.current[level.level_id]
-        if (!el) return null
-        const r = el.getBoundingClientRect()
-        return {
-          id: level.level_id,
-          x: r.left - base.left + r.width / 2,
-          y: r.top - base.top + r.height / 2,
-        }
-      })
-      setLayout({ width: base.width, height: base.height, points })
-    }
-    measure()
-    const ro = new ResizeObserver(measure)
-    if (containerRef.current) ro.observe(containerRef.current)
-    window.addEventListener('resize', measure)
-    return () => {
-      ro.disconnect()
-      window.removeEventListener('resize', measure)
-    }
-  }, [levels])
-
-  // Build straight zigzag connectors between consecutive nodes within a unit.
-  const connectors = []
-  for (let i = 0; i < items.length - 1; i++) {
-    if (items[i + 1].startsUnit) continue // a unit banner sits between them
-    const a = layout.points[i]
-    const b = layout.points[i + 1]
-    if (!a || !b) continue
-    connectors.push(`M ${a.x} ${a.y} L ${b.x} ${b.y}`)
-  }
+  }, [currentLevelId, levels])
 
   return (
-    <div ref={containerRef} className="relative">
-      {/* Dotted connector layer */}
-      <svg
-        className="absolute inset-0 pointer-events-none"
-        width={layout.width}
-        height={layout.height}
-        aria-hidden="true"
-      >
-        {connectors.map((d, i) => (
-          <path
-            key={i}
-            d={d}
-            fill="none"
-            stroke="#78716c"
-            strokeWidth="4"
-            strokeLinecap="round"
-            strokeDasharray="0.1 16"
+    <div className="pb-8">
+      {groups.map((items, gi) => (
+        <div key={gi}>
+          {gi > 0 && <LevelDivider />}
+          <LevelCard
+            levelNumber={gi + 1}
+            items={items}
+            tint={LEVEL_TINTS[gi % LEVEL_TINTS.length]}
+            getLevelStatus={getLevelStatus}
+            currentLevelId={currentLevelId}
+            onSelect={onSelect}
           />
-        ))}
-      </svg>
-
-      {/* Nodes + unit banners */}
-      <div className="relative flex flex-col items-stretch">
-        {items.map(({ level, offset, startsUnit }) => {
-          const status = getLevelStatus(level)
-          const isCurrent = level.level_id === currentLevelId
-          return (
-            <div key={level.level_id}>
-              {startsUnit && <UnitBanner stage={level.archetype_stage} />}
-              <div
-                className="flex justify-center my-4"
-                style={{ transform: `translateX(${offset}px)` }}
-              >
-                <PathNode
-                  ref={(el) => {
-                    nodeRefs.current[level.level_id] = el
-                  }}
-                  level={level}
-                  status={status}
-                  isCurrent={isCurrent}
-                  onSelect={onSelect}
-                />
-              </div>
-            </div>
-          )
-        })}
-      </div>
+        </div>
+      ))}
     </div>
   )
 }
 
-function UnitBanner({ stage }) {
+function LevelDivider() {
+  return <div className="mx-10 my-2 border-t-2 border-dotted border-stone-600/30" aria-hidden="true" />
+}
+
+function LevelCard({ levelNumber, items, tint, getLevelStatus, currentLevelId, onSelect }) {
   const t = useT()
-  const archLabel = t('arch.' + stage)
+  const cardRef = useRef(null)
+  const nodeRefs = useRef({})
+  const [points, setPoints] = useState([])
+
+  useLayoutEffect(() => {
+    function measure() {
+      const base = cardRef.current?.getBoundingClientRect()
+      if (!base) return
+      setPoints(items.map((it) => {
+        const el = nodeRefs.current[it.level.level_id]
+        if (!el) return null
+        const r = el.getBoundingClientRect()
+        return { x: r.left - base.left + r.width / 2, y: r.top - base.top + r.height / 2 }
+      }))
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    if (cardRef.current) ro.observe(cardRef.current)
+    window.addEventListener('resize', measure)
+    return () => { ro.disconnect(); window.removeEventListener('resize', measure) }
+  }, [items])
+
+  // Straight connectors between consecutive nodes in this level.
+  const connectors = []
+  for (let i = 0; i < items.length - 1; i++) {
+    const a = points[i], b = points[i + 1]
+    if (!a || !b) continue
+    connectors.push(`M ${a.x} ${a.y} L ${b.x} ${b.y}`)
+  }
+
+  const levelLabel = t('learn.level', { n: levelNumber })
+
   return (
-    <div className="mt-10 mb-5 first:mt-0">
-      <div className="bg-stone-800/80 border border-stone-700 rounded-2xl px-5 py-3 text-center">
-        <p className="text-stone-500 text-[11px] uppercase tracking-[0.2em]">{t('learn.pathOfThe')}</p>
-        <p className="font-display text-amber-400 text-lg tracking-wide">
-          {archLabel === 'arch.' + stage ? stage : archLabel}
-        </p>
+    <div ref={cardRef} className="relative rounded-3xl px-2 py-5" style={{ background: tint }}>
+      <p className="text-center text-[11px] uppercase tracking-[0.22em] text-stone-400 mb-2">
+        {levelLabel === 'learn.level' ? `Level ${levelNumber}` : levelLabel}
+      </p>
+
+      {/* Dotted connector layer (behind the nodes, above the tint) */}
+      <svg className="absolute inset-0 pointer-events-none" width="100%" height="100%" aria-hidden="true">
+        {connectors.map((d, i) => (
+          <path key={i} d={d} fill="none" stroke="#78716c" strokeWidth="4" strokeLinecap="round" strokeDasharray="0.1 16" />
+        ))}
+      </svg>
+
+      <div className="relative">
+        {items.map(({ level, offset }) => {
+          const status = getLevelStatus(level)
+          const isCurrent = level.level_id === currentLevelId
+          return (
+            <div key={level.level_id} className="flex justify-center my-4" style={{ transform: `translateX(${offset}px)` }}>
+              <PathNode
+                ref={(el) => { nodeRefs.current[level.level_id] = el }}
+                level={level}
+                status={status}
+                isCurrent={isCurrent}
+                onSelect={onSelect}
+              />
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -173,6 +166,7 @@ function PathNode({ ref, level, status, isCurrent, onSelect }) {
       )}
 
       <button
+        id={isCurrent ? 'kw-current-node' : undefined}
         onClick={() => clickable && onSelect(level.level_id)}
         disabled={!clickable}
         aria-label={`Level ${level.level_number}: ${title}${isLocked ? ' (locked)' : ''}`}

@@ -82,6 +82,7 @@ const fa = {
   'learn.empty': 'هنوز مرحله‌ای نیست.',
   'learn.pathOfThe': 'مسیرِ',
   'learn.start': 'شروع',
+  'learn.level': 'سطح {n}',
 
   // course
   'course.reading': 'درک مطلب',

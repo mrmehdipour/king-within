@@ -82,6 +82,7 @@ const en = {
   'learn.empty': 'No levels yet.',
   'learn.pathOfThe': 'Path of the',
   'learn.start': 'Start',
+  'learn.level': 'Level {n}',
 
   // course
   'course.reading': 'Reading comprehension',
