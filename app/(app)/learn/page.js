@@ -5,6 +5,7 @@ import { useAppData } from '../../lib/appData'
 import { getArchetypeProgress } from '../../lib/archetypes'
 import { useT } from '../../lib/i18n'
 import PathMap from '../../components/PathMap'
+import LionCoach from '../../components/LionCoach'
 
 export default function LearnPage() {
   const router = useRouter()
@@ -60,7 +61,8 @@ export default function LearnPage() {
         </div>
       </header>
 
-      <main className="max-w-xl mx-auto px-4 pt-8">
+      <main className="max-w-xl mx-auto px-4 pt-6">
+        <LionCoach />
         {levels.length === 0 ? (
           <p className="text-center text-stone-500 py-24">{t('learn.empty')}</p>
         ) : (

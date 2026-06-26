@@ -60,6 +60,17 @@ Structure your reply with these short sections (translate the headings if writin
 Keep the whole thing under ~250 words. Language: ${locale === 'fa' ? 'Persian (فارسی)' : 'English'}.`,
     context: buildPersonalityContext,
   },
+
+  coach: {
+    instruction: (locale) =>
+      `Give this person ONE short piece of guidance for today — like a coach who saw their recent journey.
+
+- 2-3 sentences only. Warm, direct, a little fierce. No headings, no lists.
+- Acknowledge something specific from their recent activity below.
+- End with one concrete thing to do today (a small, doable action).
+- Under ~70 words. Language: ${locale === 'fa' ? 'Persian (فارسی)' : 'English'}.`,
+    context: buildCoachContext,
+  },
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -133,6 +144,47 @@ async function buildPersonalityContext(supabase: any, userId: string): Promise<s
     }
   } else {
     lines.push('(none yet)')
+  }
+
+  return lines.join('\n')
+}
+
+// Coach context — small and recent. Just enough for one timely nudge.
+async function buildCoachContext(supabase: any, userId: string): Promise<string> {
+  const today = new Date().toISOString().slice(0, 10)
+  const [{ data: profile }, { data: journal }, { count: completed }] = await Promise.all([
+    supabase.from('profiles').select('current_archetype, current_level, total_xp').eq('id', userId).single(),
+    supabase
+      .from('journal_entries')
+      .select('entry_date, answer_text, free_text, journal_questions(prompt)')
+      .eq('user_id', userId)
+      .eq('completed', true)
+      .order('entry_date', { ascending: false })
+      .limit(5),
+    supabase
+      .from('user_progress')
+      .select('level_id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('status', 'completed'),
+  ])
+
+  const lines: string[] = []
+  lines.push(`TODAY: ${today}`)
+  lines.push(
+    `PROFILE: archetype=${profile?.current_archetype ?? 'Initiate'}, level=${profile?.current_level ?? 0}, total_xp=${profile?.total_xp ?? 0}, courses_completed=${completed ?? 0}`,
+  )
+  const lastDate = journal?.[0]?.entry_date
+  lines.push(`JOURNALED TODAY: ${lastDate === today ? 'yes' : 'no'}`)
+
+  lines.push('\nRECENT JOURNAL:')
+  if (journal?.length) {
+    for (const j of journal) {
+      const prompt = j.journal_questions?.prompt ?? '(daily prompt)'
+      const ans = [j.answer_text, j.free_text].filter(Boolean).join(' — ')
+      if (ans) lines.push(`- (${j.entry_date}) ${truncate(prompt, 80)} → "${truncate(ans, 180)}"`)
+    }
+  } else {
+    lines.push('(none yet — they have not started journaling)')
   }
 
   return lines.join('\n')
