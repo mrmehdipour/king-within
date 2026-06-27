@@ -29,6 +29,11 @@ const en = {
   'landing.howTitle': 'How it works',
   'landing.finalCta': 'Begin as an Initiate',
   'landing.downloadAndroid': 'Download for Android',
+  'landing.installIos': 'Install on iPhone',
+  'landing.iosTitle': 'Add to your iPhone Home Screen',
+  'landing.iosStep1': 'Open this site in Safari.',
+  'landing.iosStep2': 'Tap the Share button (the square with an arrow).',
+  'landing.iosStep3': 'Choose “Add to Home Screen”.',
   'landing.arch.initiate.desc': 'See clearly',
   'landing.arch.warrior.desc': 'Hold the line',
   'landing.arch.magician.desc': 'Shape your world',
@@ -227,6 +232,34 @@ const en = {
   'update.body': 'Version {version} is ready. Update to get the latest.',
   'update.now': 'Update now',
   'update.later': 'Later',
+
+  // archetype evaluation (first-time)
+  'evaluate.title': 'Find your archetype',
+  'evaluate.skip': 'Skip',
+  'evaluate.progress': '{n} of {total}',
+  'evaluate.resultLead': 'Your dominant archetype',
+  'evaluate.begin': 'Begin your path',
+
+  // paywall (daily limit)
+  'paywall.title': "Today's course is done",
+  'paywall.body': 'Free members complete one course a day. Come back tomorrow — or unlock a full level (3 courses) every day with Pro.',
+  'paywall.bodyPro': "You've completed your three courses for today. Rest, and come back tomorrow.",
+  'paywall.getPro': 'Unlock Pro',
+  'paywall.back': 'Back to the path',
+
+  // pro plan
+  'pro.title': 'King Within Pro',
+  'pro.subtitle': 'Go deeper, faster.',
+  'pro.freeTitle': 'Free',
+  'pro.proTitle': 'Pro',
+  'pro.free1': 'One course per day',
+  'pro.free2': 'Daily journal and streak',
+  'pro.free3': "The Lion's daily coach and chat",
+  'pro.pro1': 'A full level — 3 courses — every day',
+  'pro.pro2': 'Everything in Free',
+  'pro.pro3': 'More features as we grow',
+  'pro.comingSoon': 'Coming soon',
+  'pro.back': 'Back',
 
   // blog
   'blog.library': 'The Library',

@@ -8,6 +8,7 @@ import { awardXp } from '../lib/xp'
 import { useLang } from '../lib/i18n'
 import { videoEmbed, audioEmbed } from '../lib/media'
 import BreathingIntro from '../components/BreathingIntro'
+import Paywall from '../components/Paywall'
 
 const GRADED = new Set(['quiz', 'fill_blank', 'true_false', 'match'])
 const norm = (s) => String(s ?? '').trim().toLowerCase()
@@ -39,6 +40,8 @@ function CoursePlayer() {
   const [level, setLevel] = useState(null)
   const [blocks, setBlocks] = useState([])
   const [wasCompleted, setWasCompleted] = useState(false)
+  const [gated, setGated] = useState(false) // hit the free/Pro daily limit
+  const [isPro, setIsPro] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const [started, setStarted] = useState(false) // breathing intro gate
@@ -58,7 +61,22 @@ function CoursePlayer() {
     ])
     setLevel(levelData)
     setBlocks(blockData || [])
-    if (existing?.status === 'completed') setWasCompleted(true)
+    const alreadyDone = existing?.status === 'completed'
+    if (alreadyDone) setWasCompleted(true)
+
+    // Daily limit: free = 1 course/day, Pro = 3 (a full level). Re-opening an
+    // already-completed course is always allowed; only NEW courses are gated.
+    if (!alreadyDone) {
+      const startOfToday = new Date(new Date().toISOString().slice(0, 10)).toISOString()
+      const [{ data: prof }, { count }] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', user.id).single(),
+        supabase.from('xp_events').select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id).eq('source', 'course').gte('created_at', startOfToday),
+      ])
+      const pro = !!prof?.is_pro
+      setIsPro(pro)
+      if ((count ?? 0) >= (pro ? 3 : 1)) setGated(true)
+    }
     setLoading(false)
   }
 
@@ -95,6 +113,11 @@ function CoursePlayer() {
         <button onClick={() => router.push('/learn')} className="mt-4 text-amber-400 underline">{t('course.back')}</button>
       </CenterMessage>
     )
+  }
+
+  // Hit the daily course limit on a not-yet-completed course → upsell.
+  if (gated && !wasCompleted && !finished) {
+    return <Paywall t={t} isPro={isPro} onBack={() => router.push('/learn')} onGetPro={() => router.push('/pro')} />
   }
 
   // Breathing ritual before the lesson begins (shown once per visit).

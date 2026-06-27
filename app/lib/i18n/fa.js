@@ -29,6 +29,11 @@ const fa = {
   'landing.howTitle': 'چطور کار می‌کند',
   'landing.finalCta': 'به‌عنوان نوآموز شروع کن',
   'landing.downloadAndroid': 'دانلود نسخه اندروید',
+  'landing.installIos': 'نصب روی آیفون',
+  'landing.iosTitle': 'افزودن به صفحهٔ اصلی آیفون',
+  'landing.iosStep1': 'این سایت را در سافاری باز کن.',
+  'landing.iosStep2': 'دکمهٔ اشتراک‌گذاری (مربع با فلش) را بزن.',
+  'landing.iosStep3': '«Add to Home Screen» را انتخاب کن.',
   'landing.arch.initiate.desc': 'شفاف ببین',
   'landing.arch.warrior.desc': 'پایداری کن',
   'landing.arch.magician.desc': 'جهانت را بساز',
@@ -227,6 +232,34 @@ const fa = {
   'update.body': 'نسخهٔ {version} آماده است. برای دریافت آخرین نسخه به‌روزرسانی کن.',
   'update.now': 'به‌روزرسانی کن',
   'update.later': 'بعداً',
+
+  // archetype evaluation (first-time)
+  'evaluate.title': 'کهن‌الگوی خود را بیاب',
+  'evaluate.skip': 'رد کردن',
+  'evaluate.progress': '{n} از {total}',
+  'evaluate.resultLead': 'کهن‌الگوی غالب تو',
+  'evaluate.begin': 'مسیرت را آغاز کن',
+
+  // paywall (daily limit)
+  'paywall.title': 'درس امروز تمام شد',
+  'paywall.body': 'کاربران رایگان روزی یک درس کامل می‌کنند. فردا برگرد — یا با پرو، هر روز یک سطح کامل (۳ درس) را باز کن.',
+  'paywall.bodyPro': 'سه درس امروزت را کامل کرده‌ای. استراحت کن و فردا برگرد.',
+  'paywall.getPro': 'فعال‌سازی پرو',
+  'paywall.back': 'بازگشت به مسیر',
+
+  // pro plan
+  'pro.title': 'کینگ‌ویتین پرو',
+  'pro.subtitle': 'عمیق‌تر، سریع‌تر.',
+  'pro.freeTitle': 'رایگان',
+  'pro.proTitle': 'پرو',
+  'pro.free1': 'روزی یک درس',
+  'pro.free2': 'دفترچهٔ روزانه و روزشمار',
+  'pro.free3': 'مربی روزانه و گفتگوی شیر',
+  'pro.pro1': 'یک سطح کامل — ۳ درس — هر روز',
+  'pro.pro2': 'همهٔ امکانات رایگان',
+  'pro.pro3': 'امکانات بیشتر در آینده',
+  'pro.comingSoon': 'به‌زودی',
+  'pro.back': 'بازگشت',
 
   // blog
   'blog.library': 'کتابخانه',

@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { useT } from './lib/i18n'
 import LanguageToggle from './components/LanguageToggle'
@@ -12,6 +13,7 @@ const APK_URL =
 
 export default function HomePage() {
   const t = useT()
+  const [showIos, setShowIos] = useState(false)
 
   const stages = [
     { key: 'Initiate', desc: 'landing.arch.initiate.desc' },
@@ -65,7 +67,25 @@ export default function HomePage() {
             <AndroidIcon />
             {t('landing.downloadAndroid')}
           </a>
+          <button
+            onClick={() => setShowIos((s) => !s)}
+            className="inline-flex items-center gap-2 border border-stone-600 hover:border-amber-500 text-stone-200 hover:text-amber-400 font-semibold px-6 py-3 rounded-lg transition"
+          >
+            <AppleIcon />
+            {t('landing.installIos')}
+          </button>
         </div>
+
+        {showIos && (
+          <div className="mt-5 max-w-sm mx-auto bg-stone-800 border border-stone-700 rounded-xl p-5 text-start">
+            <p className="text-amber-400 font-semibold mb-3 text-center">{t('landing.iosTitle')}</p>
+            <ol className="space-y-2 text-stone-300 text-sm">
+              <li>1. {t('landing.iosStep1')}</li>
+              <li>2. {t('landing.iosStep2')}</li>
+              <li>3. {t('landing.iosStep3')}</li>
+            </ol>
+          </div>
+        )}
       </section>
 
       {/* Archetype path preview */}
@@ -129,6 +149,14 @@ function AndroidIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M17.6 9.48l1.84-3.18c.16-.31.04-.69-.26-.85a.637.637 0 0 0-.83.22l-1.88 3.24a11.43 11.43 0 0 0-8.94 0L5.65 5.67a.643.643 0 0 0-.87-.2c-.28.18-.37.54-.22.83L6.4 9.48A10.78 10.78 0 0 0 1 18h22a10.78 10.78 0 0 0-5.4-8.52zM7 15.25a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5zm10 0a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5z" />
+    </svg>
+  )
+}
+
+function AppleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M16.36 12.7c-.02-2.05 1.67-3.03 1.75-3.08-.95-1.4-2.44-1.59-2.97-1.61-1.26-.13-2.47.74-3.11.74-.64 0-1.63-.72-2.69-.7-1.38.02-2.66.8-3.37 2.04-1.44 2.5-.37 6.2 1.03 8.23.68 1 1.5 2.11 2.56 2.07 1.03-.04 1.42-.66 2.66-.66 1.24 0 1.59.66 2.68.64 1.11-.02 1.81-1.01 2.49-2.01.78-1.15 1.1-2.27 1.12-2.33-.02-.01-2.15-.83-2.18-3.26zM14.3 6.6c.56-.68.94-1.62.83-2.56-.81.03-1.79.54-2.37 1.22-.52.6-.97 1.56-.85 2.48.9.07 1.83-.46 2.39-1.14z" />
     </svg>
   )
 }

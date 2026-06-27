@@ -32,6 +32,16 @@ export const metadata: Metadata = {
   description:
     "A step-by-step path for modern men, built on the archetypes of Initiate, Warrior, Magician, and King.",
   applicationName: "King Within",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "King Within",
+  },
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export const viewport: Viewport = {

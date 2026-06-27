@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAppData } from '../../lib/appData'
 import { getArchetypeProgress } from '../../lib/archetypes'
@@ -11,6 +12,14 @@ export default function LearnPage() {
   const router = useRouter()
   const t = useT()
   const { profile, levels, loading, getLevelStatus } = useAppData()
+
+  // First-time onboarding: send new users to the archetype evaluation once.
+  // Use `=== null` (not falsy) so that BEFORE db/12 runs — when the column is
+  // absent (undefined) — we don't redirect-loop. After db/12, un-evaluated users
+  // have evaluated_at === null and get sent once.
+  useEffect(() => {
+    if (!loading && profile && profile.evaluated_at === null) router.replace('/evaluate')
+  }, [loading, profile, router])
 
   if (loading) {
     return (

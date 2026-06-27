@@ -1,0 +1,14 @@
+{
+  "name": "King Within",
+  "short_name": "King Within",
+  "description": "Awaken the leader inside — a step-by-step path for modern men.",
+  "start_url": "/learn",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0c0a09",
+  "theme_color": "#0c0a09",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
