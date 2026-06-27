@@ -9,6 +9,7 @@ import { useLang } from '../../lib/i18n'
 import LanguageToggle from '../../components/LanguageToggle'
 import LionAvatar from '../../components/LionAvatar'
 import { askLion, latestInsight, pingLion } from '../../lib/lion'
+import { APP_VERSION, APK_URL, checkForUpdate } from '../../lib/version'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -115,7 +116,57 @@ export default function ProfilePage() {
         <SettingRow label={t('profile.notifications')} onClick={() => {}} />
         <SettingRow label={t('profile.signOut')} danger onClick={handleSignOut} />
       </div>
+
+      {/* App version + update/download */}
+      <SectionTitle>{t('profile.appVersion')}</SectionTitle>
+      <AppVersionCard t={t} />
     </div>
+  )
+}
+
+function AppVersionCard({ t }) {
+  const [update, setUpdate] = useState(null)
+  useEffect(() => {
+    checkForUpdate().then((u) => u && setUpdate(u))
+  }, [])
+
+  const hasUpdate = !!update
+  const href = update?.apkUrl || APK_URL
+
+  return (
+    <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 mb-6">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-stone-400 text-sm">{t('profile.version', { v: APP_VERSION })}</span>
+        {hasUpdate ? (
+          <span className="text-amber-400 text-xs font-semibold">{t('profile.updateAvailable', { v: update.version })}</span>
+        ) : (
+          <span className="text-stone-600 text-xs">{t('profile.upToDate')}</span>
+        )}
+      </div>
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`w-full flex items-center justify-center gap-2 rounded-xl font-semibold text-sm py-3 transition ${
+          hasUpdate
+            ? 'bg-amber-500 hover:bg-amber-400 text-stone-900'
+            : 'border border-stone-700 hover:border-amber-500 text-stone-200'
+        }`}
+      >
+        <DownloadIcon />
+        {hasUpdate ? t('profile.downloadUpdate') : t('profile.downloadApp')}
+      </a>
+    </div>
+  )
+}
+
+function DownloadIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <path d="M7 10l5 5 5-5" />
+      <path d="M12 15V3" />
+    </svg>
   )
 }
 

@@ -191,6 +191,12 @@ const en = {
   'profile.editAccount': 'Edit account',
   'profile.notifications': 'Notifications',
   'profile.signOut': 'Sign out',
+  'profile.appVersion': 'App version',
+  'profile.version': 'Version {v}',
+  'profile.updateAvailable': 'Update available — v{v}',
+  'profile.downloadUpdate': 'Download update',
+  'profile.downloadApp': 'Download Android app',
+  'profile.upToDate': "You're on the latest",
 
   // lion (AI agent)
   'lion.title': 'The Lion',

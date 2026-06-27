@@ -191,6 +191,12 @@ const fa = {
   'profile.editAccount': 'ویرایش حساب',
   'profile.notifications': 'اعلان‌ها',
   'profile.signOut': 'خروج',
+  'profile.appVersion': 'نسخهٔ برنامه',
+  'profile.version': 'نسخهٔ {v}',
+  'profile.updateAvailable': 'به‌روزرسانی موجود است — نسخهٔ {v}',
+  'profile.downloadUpdate': 'دانلود به‌روزرسانی',
+  'profile.downloadApp': 'دانلود نسخهٔ اندروید',
+  'profile.upToDate': 'آخرین نسخه را داری',
 
   // lion (AI agent)
   'lion.title': 'شیر',

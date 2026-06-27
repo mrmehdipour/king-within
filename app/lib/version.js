@@ -12,7 +12,7 @@
 //
 // ⚠️ ON EVERY RELEASE: bump APP_VERSION here. The build regenerates the manifest;
 // commit it so the raw URL reflects the new version.
-export const APP_VERSION = '1.3.0'
+export const APP_VERSION = '1.4.0'
 
 // Installed apps read the latest version from the repo's committed manifest.
 export const VERSION_MANIFEST_URL =
