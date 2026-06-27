@@ -265,6 +265,8 @@ const en = {
   'pro.pro2': 'Everything in Free',
   'pro.pro3': 'More features as we grow',
   'pro.comingSoon': 'Coming soon',
+  'pro.waitlist': 'Join the waitlist',
+  'pro.waitlistJoined': "✓ You're on the list — we'll tell you when Pro opens.",
   'pro.back': 'Back',
 
   // blog

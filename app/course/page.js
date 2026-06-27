@@ -12,6 +12,12 @@ import Paywall from '../components/Paywall'
 
 const GRADED = new Set(['quiz', 'fill_blank', 'true_false', 'match'])
 const norm = (s) => String(s ?? '').trim().toLowerCase()
+
+// Daily course limits. During the beta the gate is OFF — maximize engagement and
+// learning. Flip BETA_UNLIMITED to false to enforce free=1 / Pro=3 per day.
+const FREE_DAILY = 1
+const PRO_DAILY = 3
+const BETA_UNLIMITED = true
 // Minimum fraction of graded parts the user must get right to pass a course.
 const PASS_RATIO = 0.7
 
@@ -75,7 +81,7 @@ function CoursePlayer() {
       ])
       const pro = !!prof?.is_pro
       setIsPro(pro)
-      if ((count ?? 0) >= (pro ? 3 : 1)) setGated(true)
+      if (!BETA_UNLIMITED && (count ?? 0) >= (pro ? PRO_DAILY : FREE_DAILY)) setGated(true)
     }
     setLoading(false)
   }

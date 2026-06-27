@@ -1,11 +1,24 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useT } from '../lib/i18n'
 
 export default function ProPage() {
   const router = useRouter()
   const t = useT()
+  const [joined, setJoined] = useState(false)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && localStorage.getItem('kw_pro_waitlist')) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setJoined(true)
+    }
+  }, [])
+  function joinWaitlist() {
+    try { localStorage.setItem('kw_pro_waitlist', '1') } catch { /* ignore */ }
+    setJoined(true)
+  }
 
   return (
     <div className="min-h-[100dvh] bg-stone-950 text-white px-5 pt-safe">
@@ -37,12 +50,16 @@ export default function ProPage() {
               <li>★ {t('pro.pro2')}</li>
               <li>★ {t('pro.pro3')}</li>
             </ul>
-            <button
-              disabled
-              className="mt-5 w-full bg-amber-500/40 text-stone-900/70 font-bold py-3 rounded-xl cursor-not-allowed"
-            >
-              {t('pro.comingSoon')}
-            </button>
+            {joined ? (
+              <p className="mt-5 text-center text-green-400 text-sm font-semibold">{t('pro.waitlistJoined')}</p>
+            ) : (
+              <button
+                onClick={joinWaitlist}
+                className="mt-5 w-full bg-amber-500 hover:bg-amber-400 text-stone-900 font-bold py-3 rounded-xl transition"
+              >
+                {t('pro.waitlist')}
+              </button>
+            )}
           </div>
         </div>
       </div>
