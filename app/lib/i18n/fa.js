@@ -6,6 +6,9 @@ const fa = {
   'common.min': 'دقیقه',
   'common.minRead': 'دقیقه مطالعه',
 
+  // brand
+  'brand.name': 'پادشاه درون',
+
   // nav / tabs
   'nav.blog': 'وبلاگ',
   'nav.login': 'ورود',
@@ -46,7 +49,7 @@ const fa = {
   'landing.step.evolve.desc': 'پیشرفت، مراحل تازه را باز می‌کند و تو را به کهن‌الگوی بعدی می‌رساند.',
 
   // signup
-  'signup.title': 'بیداری پادشاه درون',
+  'signup.title': 'پادشاه درون',
   'signup.subtitleLogin': 'به مسیرت بازگرد.',
   'signup.subtitleSignup': 'سفرت را آغاز کن.',
   'signup.email': 'ایمیل',

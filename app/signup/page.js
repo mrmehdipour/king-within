@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabaseClient'
 import { useLang } from '../lib/i18n'
 import LanguageToggle from '../components/LanguageToggle'
+import CrownLogo from '../components/CrownLogo'
 
 // Iran mobile → E.164 (+989xxxxxxxxx). Accepts 0912…, 912…, 0098…, +98….
 function normalizeIranPhone(raw) {
@@ -84,6 +85,7 @@ export default function SignupPage() {
     <div className="min-h-screen flex items-center justify-center bg-stone-900 px-4">
       <div className="w-full max-w-sm bg-stone-800 rounded-2xl p-7 shadow-xl">
         <div className="flex justify-end mb-2"><LanguageToggle /></div>
+        <div className="flex justify-center mb-2"><CrownLogo size={44} className="text-amber-400" /></div>
         <h1 className="text-2xl font-bold text-amber-400 mb-1 text-center font-display">
           {t('signup.title')}
         </h1>

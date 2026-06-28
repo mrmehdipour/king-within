@@ -6,6 +6,9 @@ const en = {
   'common.min': 'min',
   'common.minRead': 'min read',
 
+  // brand
+  'brand.name': 'King Within',
+
   // nav / tabs
   'nav.blog': 'Blog',
   'nav.login': 'Log in',
@@ -46,7 +49,7 @@ const en = {
   'landing.step.evolve.desc': 'Progress unlocks new levels and moves you toward the next archetype.',
 
   // signup
-  'signup.title': 'Awaken the King Within',
+  'signup.title': 'King Within',
   'signup.subtitleLogin': 'Return to your path.',
   'signup.subtitleSignup': 'Begin your journey.',
   'signup.email': 'Email',

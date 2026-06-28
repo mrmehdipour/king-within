@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useT } from './lib/i18n'
 import LanguageToggle from './components/LanguageToggle'
+import CrownLogo from './components/CrownLogo'
 
 // Where the Android APK lives. Defaults to the GitHub release the build workflow
 // publishes; override with NEXT_PUBLIC_APK_URL if the app is hosted elsewhere.
@@ -31,7 +32,9 @@ export default function HomePage() {
     <div className="min-h-screen bg-stone-900 text-white">
       {/* Top nav */}
       <nav className="flex items-center justify-between px-6 py-5 max-w-5xl mx-auto">
-        <span className="text-amber-400 font-display font-bold text-lg">King Within</span>
+        <span className="flex items-center gap-2 text-amber-400 font-display font-bold text-lg">
+          <CrownLogo size={26} /> {t('brand.name')}
+        </span>
         <div className="flex items-center gap-6">
           <LanguageToggle />
           <Link href="/blog" className="text-stone-300 hover:text-amber-400 transition text-sm">

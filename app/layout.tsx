@@ -28,15 +28,15 @@ const vazirmatn = Vazirmatn({
 });
 
 export const metadata: Metadata = {
-  title: "King Within — Awaken the leader inside",
+  title: "پادشاه درون — King Within",
   description:
-    "A step-by-step path for modern men, built on the archetypes of Initiate, Warrior, Magician, and King.",
-  applicationName: "King Within",
+    "بیداری رهبرِ درون — مسیری گام‌به‌گام برای مردان امروز، بر پایهٔ کهن‌الگوهای نوآموز، جنگجو، جادوگر و پادشاه.",
+  applicationName: "پادشاه درون",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "King Within",
+    title: "پادشاه درون",
   },
   icons: {
     icon: "/icon.svg",

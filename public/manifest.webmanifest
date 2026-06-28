@@ -1,7 +1,9 @@
 {
-  "name": "King Within",
-  "short_name": "King Within",
-  "description": "Awaken the leader inside — a step-by-step path for modern men.",
+  "name": "پادشاه درون",
+  "short_name": "پادشاه درون",
+  "description": "بیداری رهبرِ درون — مسیری گام‌به‌گام برای مردان امروز.",
+  "lang": "fa",
+  "dir": "rtl",
   "start_url": "/learn",
   "scope": "/",
   "display": "standalone",
