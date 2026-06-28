@@ -204,8 +204,14 @@ function CoursePlayer() {
         level_id: level.level_id,
         block_id: b.id,
         type: b.type,
-        answer: { value: s.value ?? null },
-        is_correct: GRADED.has(b.type) ? !!s.correct : null,
+        // Writing rows also keep the Lion's verdict (pass + feedback) — the
+        // dataset we'll use later to tune the mentor's prompts.
+        answer: b.type === 'writing'
+          ? { value: s.value ?? null, lion: s.lionVerdict ?? null }
+          : { value: s.value ?? null },
+        is_correct: GRADED.has(b.type)
+          ? !!s.correct
+          : (b.type === 'writing' && s.lionVerdict ? !!s.lionVerdict.pass : null),
       }))
     if (answerRows.length) await supabase.from('user_answers').insert(answerRows)
 
@@ -230,10 +236,10 @@ function CoursePlayer() {
     const res = await checkWriting(bf(block, 'prompt', locale), st.value, locale)
     setChecking(false)
     if (res.pass) {
-      setS(stepIndex, { writingOk: true })
+      setS(stepIndex, { writingOk: true, lionVerdict: res })
       advance()
     } else {
-      setS(stepIndex, { lionFeedback: res.feedback || t('course.lionWantsMore') })
+      setS(stepIndex, { lionVerdict: res, lionFeedback: res.feedback || t('course.lionWantsMore') })
     }
   }
 
