@@ -136,6 +136,8 @@ const en = {
   'course.breathOfN': 'Breath {n} of {total}',
   'course.breathTitle': 'Take a moment to arrive',
   'course.skip': 'Skip',
+  'course.lionChecking': 'The Lion is reading your answer…',
+  'course.lionWantsMore': 'Go deeper — give an honest, complete answer and the Lion will let you pass.',
 
   // journal
   'journal.title': 'Daily Journal',

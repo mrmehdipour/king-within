@@ -58,6 +58,22 @@ export async function lionChat(message, { locale = 'en' } = {}) {
   return data // { reply }
 }
 
+// Ask the Lion to judge a critical-thinking answer (complete + honest?).
+// Returns { pass, feedback }. NEVER blocks on failure — if the Lion is
+// unreachable, it passes the user through (we don't punish them for our outage).
+export async function checkWriting(prompt, answer, locale = 'en') {
+  if (!String(answer ?? '').trim()) return { pass: false, feedback: '' }
+  try {
+    const { data, error } = await supabase.functions.invoke('lion', {
+      body: { skill: 'check_writing', prompt, answer, locale },
+    })
+    if (error || !data || data.error) return { pass: true, feedback: '' }
+    return { pass: data.pass !== false, feedback: data.feedback || '' }
+  } catch {
+    return { pass: true, feedback: '' }
+  }
+}
+
 // Full conversation history (oldest→newest) for the signed-in user.
 export async function lionHistory(limit = 50) {
   const { data: { user } } = await supabase.auth.getUser()

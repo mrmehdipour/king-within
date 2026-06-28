@@ -136,6 +136,8 @@ const fa = {
   'course.breathOfN': 'نفس {n} از {total}',
   'course.breathTitle': 'لحظه‌ای آرام بگیر',
   'course.skip': 'رد کردن',
+  'course.lionChecking': 'شیر در حال خواندن پاسخ توست…',
+  'course.lionWantsMore': 'عمیق‌تر بنویس — پاسخی صادقانه و کامل بده تا شیر اجازهٔ عبور دهد.',
 
   // journal
   'journal.title': 'دفترچهٔ روزانه',

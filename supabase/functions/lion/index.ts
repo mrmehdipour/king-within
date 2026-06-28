@@ -463,6 +463,32 @@ Deno.serve(async (req) => {
       return json({ reply, provider: result.provider })
     }
 
+    // ── critical-thinking gate: is the reflection a genuine, honest attempt? ──
+    if (skillName === 'check_writing') {
+      const promptText = String(body.prompt ?? '').slice(0, 1200)
+      const answerText = String(body.answer ?? '').slice(0, 4000)
+      if (!answerText.trim()) return json({ pass: false, feedback: '' })
+
+      const lang = locale === 'fa' ? 'Persian (فارسی)' : 'English'
+      const system = `${PERSONA}
+
+You are judging whether a man's written reflection is a GENUINE, honest attempt — NOT whether it is "correct" (there are no correct answers to a reflection). Be generous: PASS anything on-topic that shows real thought or honesty, even if short or imperfect. FAIL only clearly low-effort answers: empty, gibberish, a single vague word, a joke, "idk", or plainly off-topic.`
+      const userMsg = `REFLECTION PROMPT:
+${promptText}
+
+HIS ANSWER:
+${answerText}
+
+Return ONLY a JSON object: {"pass": true or false, "feedback": "one short, warm sentence in ${lang} — if pass is false, tell him specifically what to add; if true, a brief affirming line"}. No markdown fences.`
+
+      const result = await callModelInLanguage(system, userMsg, locale, true)
+      if (!result.ok || !result.content) return json({ pass: true, feedback: '' }) // never hard-block on AI failure
+      let verdict: any
+      try { verdict = JSON.parse(result.content.match(/\{[\s\S]*\}/)?.[0] ?? result.content) } catch { /* */ }
+      if (!verdict || typeof verdict.pass !== 'boolean') return json({ pass: true, feedback: '' })
+      return json({ pass: verdict.pass, feedback: String(verdict.feedback ?? '') })
+    }
+
     const skill = SKILLS[skillName]
     if (!skill) return json({ error: `Unknown skill: ${skillName}`, code: 'bad_skill' }, 400)
 

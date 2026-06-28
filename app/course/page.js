@@ -5,10 +5,12 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { marked } from 'marked'
 import { supabase } from '../lib/supabaseClient'
 import { awardXp } from '../lib/xp'
+import { checkWriting } from '../lib/lion'
 import { useLang } from '../lib/i18n'
 import { videoEmbed, audioEmbed } from '../lib/media'
 import BreathingIntro from '../components/BreathingIntro'
 import Paywall from '../components/Paywall'
+import LionAvatar from '../components/LionAvatar'
 
 const GRADED = new Set(['quiz', 'fill_blank', 'true_false', 'match'])
 const norm = (s) => String(s ?? '').trim().toLowerCase()
@@ -54,6 +56,7 @@ function CoursePlayer() {
   const [stepIndex, setStepIndex] = useState(0)
   const [stepState, setStepState] = useState({}) // index -> { value, hasAnswer, checked, correct }
   const [submitting, setSubmitting] = useState(false)
+  const [checking, setChecking] = useState(false) // Lion reading a writing answer
   const [finished, setFinished] = useState(null)
 
   async function load() {
@@ -215,8 +218,23 @@ function CoursePlayer() {
   }
 
   function onPrimary() {
-    if (primaryMode === 'check') grade()
-    else advance()
+    if (primaryMode === 'check') return grade()
+    // Writing parts must pass the Lion's "genuine + honest" check before continuing.
+    if (block.type === 'writing' && !st.writingOk) return runWritingCheck()
+    advance()
+  }
+
+  async function runWritingCheck() {
+    setChecking(true)
+    setS(stepIndex, { lionFeedback: null })
+    const res = await checkWriting(bf(block, 'prompt', locale), st.value, locale)
+    setChecking(false)
+    if (res.pass) {
+      setS(stepIndex, { writingOk: true })
+      advance()
+    } else {
+      setS(stepIndex, { lionFeedback: res.feedback || t('course.lionWantsMore') })
+    }
   }
 
   function retry() {
@@ -259,8 +277,20 @@ function CoursePlayer() {
               {st.correct ? t('course.correct') : t('course.incorrect')}
             </p>
           )}
-          <PrimaryButton onClick={onPrimary} disabled={!canPrimary || submitting}>
+          {block.type === 'writing' && checking && (
+            <p className="text-amber-400 text-sm mb-2 flex items-center gap-2">
+              <LionAvatar size={20} thinking /> {t('course.lionChecking')}
+            </p>
+          )}
+          {block.type === 'writing' && st.lionFeedback && !checking && (
+            <div className="flex items-start gap-2 mb-2">
+              <LionAvatar size={22} className="shrink-0" />
+              <p className="text-amber-300 text-sm leading-snug">{st.lionFeedback}</p>
+            </div>
+          )}
+          <PrimaryButton onClick={onPrimary} disabled={!canPrimary || submitting || checking}>
             {submitting ? t('course.saving')
+              : checking ? t('course.lionChecking')
               : primaryMode === 'check' ? t('course.check')
               : isLast ? t('course.finish') : t('course.continue')}
           </PrimaryButton>
