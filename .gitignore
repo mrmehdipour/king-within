@@ -36,6 +36,14 @@ yarn-error.log*
 # vercel
 .vercel
 
+# android local config, IDE noise, build outputs — and NEVER commit a keystore
+/android/.idea/
+/android/local.properties
+/android/app/release/
+/android/app/debug/
+*.jks
+*.keystore
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
