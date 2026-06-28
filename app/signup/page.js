@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabaseClient'
 import { useLang } from '../lib/i18n'
@@ -18,19 +18,17 @@ function normalizeIranPhone(raw) {
 
 export default function SignupPage() {
   const router = useRouter()
-  const { t, locale } = useLang()
+  const { t } = useLang()
 
-  // No tabs. Phone OTP is Iran-only (SMS.ir); Iranian visitors start on phone,
-  // everyone else on email. One small link switches method when relevant.
-  const phoneFirst = locale === 'fa'
-  const pickedRef = useRef(false)
-  const [mode, setMode] = useState('email')
-
-  // Locale resolves after first paint, so set the default once it's known
-  // (unless the user has already chosen a method).
+  // Public launch: login is SMS-only. Email is hidden for everyone except the
+  // owner/admin, who can reach it at /signup?email=1.
+  const [mode, setMode] = useState('phone')
   useEffect(() => {
-    if (!pickedRef.current) setMode(phoneFirst ? 'phone' : 'email')
-  }, [phoneFirst])
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('email') === '1') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setMode('email')
+    }
+  }, [])
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -45,7 +43,6 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false)
 
   function reset() { setError(''); setNotice('') }
-  function switchMode(m) { pickedRef.current = true; setMode(m); reset(); setOtpSent(false); setCode('') }
 
   // Email: one button that signs in, or creates the account if it doesn't exist.
   async function submitEmail(e) {
@@ -161,16 +158,6 @@ export default function SignupPage() {
               {loading ? t('signup.wait') : t('signup.continue')}
             </button>
           </form>
-        )}
-
-        {/* Single method switch — only for Iran (phone OTP is Iran-only) */}
-        {phoneFirst && (
-          <button
-            onClick={() => switchMode(mode === 'phone' ? 'email' : 'phone')}
-            className="w-full text-stone-400 text-sm mt-5 hover:text-amber-400 transition"
-          >
-            {mode === 'phone' ? t('signup.useEmail') : t('signup.usePhone')}
-          </button>
         )}
       </div>
     </div>
