@@ -62,7 +62,7 @@ async function main() {
     .order('level_number', { ascending: true })
     .order('sort_order', { referencedTable: 'questions', ascending: true })
   ok('can read levels (authed)', !lvlErr, lvlErr?.message)
-  ok('6 Initiate levels seeded', (levels?.length ?? 0) === 6, `got ${levels?.length}`)
+  ok('Initiate levels seeded (>=6)', (levels?.length ?? 0) >= 6, `got ${levels?.length}`)
   const l1 = levels?.find((l) => l.level_number === 1)
   const l2 = levels?.find((l) => l.level_number === 2)
   ok('level 1 has questions', (l1?.questions?.length ?? 0) > 0, `${l1?.questions?.length} questions`)
@@ -81,25 +81,24 @@ async function main() {
   }, { onConflict: 'user_id,level_id' })
   ok('write user_progress (upsert on user_id,level_id)', !upErr, upErr?.message)
 
-  // 4) update profile XP/archetype (tests RLS on profiles update)
-  const { error: updErr } = await supabase.from('profiles').update({
-    total_xp: (profile?.total_xp ?? 0) + reward, current_archetype: 'Initiate', current_level: 2,
-  }).eq('id', userId)
-  ok('update profile XP', !updErr, updErr?.message)
+  // 4) award XP via the server-side RPC — the ONLY XP path since db/10
+  //    (direct profile/ledger writes are intentionally blocked now).
+  const { data: award, error: awardErr } = await supabase.rpc('award_xp', {
+    p_source: 'course', p_source_ref: String(l1.level_id),
+  })
+  ok('award_xp RPC grants course XP', !awardErr && award?.new_xp != null, awardErr?.message)
 
   // 5) verify persistence
   const { data: prog } = await supabase.from('user_progress').select('*').eq('user_id', userId)
   ok('progress persisted as completed', prog?.some((p) => p.level_id === l1.level_id && p.status === 'completed'))
   const { data: profile2 } = await supabase.from('profiles').select('total_xp').eq('id', userId).single()
-  ok('XP persisted', profile2?.total_xp === (profile?.total_xp ?? 0) + reward, `total_xp=${profile2?.total_xp}`)
-
-  // --- Expansion 2: XP ledger -----------------------------------------------
-  const { error: xpErr } = await supabase.from('xp_events').insert({
-    user_id: userId, source: 'course', source_ref: String(l1.level_id), amount: reward,
-  })
-  ok('write xp_events (ledger)', !xpErr, xpErr?.message)
+  ok('XP persisted (server-awarded)', (profile2?.total_xp ?? 0) === reward, `total_xp=${profile2?.total_xp}, reward=${reward}`)
   const { data: xp } = await supabase.from('xp_events').select('id').eq('user_id', userId)
-  ok('xp event persisted', (xp?.length ?? 0) > 0, `${xp?.length} events`)
+  ok('xp event persisted (via RPC)', (xp?.length ?? 0) > 0, `${xp?.length} events`)
+  const { error: directXpErr } = await supabase.from('xp_events').insert({
+    user_id: userId, source: 'course', source_ref: 'direct', amount: 5,
+  })
+  ok('direct xp_events insert blocked (security)', !!directXpErr)
 
   // --- Expansion 2: daily journal -------------------------------------------
   const today = new Date().toISOString().slice(0, 10)

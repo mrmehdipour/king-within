@@ -45,7 +45,6 @@ async function main() {
     submission_content: "A's private reflection", quiz_score: 3, quiz_total: 3,
     completed_at: new Date().toISOString(),
   }, { onConflict: 'user_id,level_id' })
-  await A.from('profiles').update({ total_xp: 999 }).eq('id', userA.id)
 
   // --- B tries to READ A's data ---
   const { data: aProfileSeenByB } = await B.from('profiles').select('*').eq('id', userA.id)
@@ -60,9 +59,10 @@ async function main() {
   ok('B only sees its own profile row(s)', onlyOwn, `saw ${allProfilesByB?.length} profile rows`)
 
   // --- B tries to WRITE A's data ---
-  await B.from('profiles').update({ total_xp: 0 }).eq('id', userA.id)
+  const { data: aBefore } = await A.from('profiles').select('total_xp').eq('id', userA.id).single()
+  await B.from('profiles').update({ total_xp: (aBefore?.total_xp ?? 0) + 5000 }).eq('id', userA.id)
   const { data: aAfter } = await A.from('profiles').select('total_xp').eq('id', userA.id).single()
-  ok("B cannot overwrite A's XP", aAfter?.total_xp === 999, `A.total_xp is now ${aAfter?.total_xp}`)
+  ok("B cannot overwrite A's XP", aAfter?.total_xp === aBefore?.total_xp, `A.total_xp is now ${aAfter?.total_xp}`)
 
   // --- Content (levels/questions) should be readable by any signed-in user ---
   const { data: lvlByB } = await B.from('levels').select('level_id')
