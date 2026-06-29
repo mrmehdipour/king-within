@@ -48,14 +48,25 @@ jobs:
       - name: Sync Capacitor (copies ./out into the native project)
         run: npx cap sync android
 
-      - name: Build debug APK
+      # Write the release keystore + properties from encrypted repo secrets.
+      - name: Decode signing keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "$GITHUB_WORKSPACE/android/release.jks"
+          cat > "$GITHUB_WORKSPACE/android/keystore.properties" <<'EOF'
+          storeFile=${{ github.workspace }}/android/release.jks
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          EOF
+
+      - name: Build signed release APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleRelease --no-daemon
 
       - name: Rename APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk king-within.apk
+        run: cp android/app/build/outputs/apk/release/app-release.apk king-within.apk
 
       # Also downloadable straight from the Actions run (Artifacts section).
       - name: Upload APK artifact

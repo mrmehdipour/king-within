@@ -43,6 +43,7 @@ yarn-error.log*
 /android/app/debug/
 *.jks
 *.keystore
+keystore.properties
 
 # typescript
 *.tsbuildinfo
