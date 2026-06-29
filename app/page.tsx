@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useT } from './lib/i18n'
+import { isNative } from './lib/version'
 import LanguageToggle from './components/LanguageToggle'
 import CrownLogo from './components/CrownLogo'
 
@@ -14,7 +16,24 @@ const APK_URL =
 
 export default function HomePage() {
   const t = useT()
+  const router = useRouter()
   const [showIos, setShowIos] = useState(false)
+  const [inApp, setInApp] = useState(false)
+
+  // In the installed app this is NOT a marketing site — skip the landing page
+  // and go straight into the product (the app shell bounces to /signup if needed).
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (isNative()) { setInApp(true); router.replace('/learn') }
+  }, [router])
+
+  if (inApp) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-stone-900">
+        <CrownLogo size={64} className="text-amber-400 lion-thinking" />
+      </div>
+    )
+  }
 
   const stages = [
     { key: 'Initiate', desc: 'landing.arch.initiate.desc' },
